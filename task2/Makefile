@@ -1,9 +1,11 @@
 .PHONY: tool test clean
 
-tool: count_int_ops.cpp
+tool: count_int_ops
+
+count_int_ops: count_int_ops.cpp
 	g++ -std=c++11 -o count_int_ops count_int_ops.cpp
 
-test: count_int_ops
+test: tool
 	turnt tool_test/*.bril
 
 clean:
