@@ -1,1 +1,1 @@
-command = "bril2json < {filename} | ./count_int_ops"
+command = "bril2json < {filename} | tool/count_int_ops"
