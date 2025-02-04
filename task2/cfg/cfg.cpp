@@ -1,11 +1,4 @@
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <set>
-#include <nlohmann/json.hpp>
-
-using json = nlohmann::json;
-
+#include "cfg.hpp"
 
 std::vector<std::vector<json>> get_blocks(const json& func){
     std::vector<std::vector<json>> blocks;
@@ -26,9 +19,10 @@ std::vector<std::vector<json>> get_blocks(const json& func){
             }
         }
 
-        if(is_label){
-            cur_block.push_back(instr);
-        }
+        // remove labels from basic blocks
+        // if(is_label){
+        //     cur_block.push_back(instr);
+        // }
     }
 
     if(!cur_block.empty()){

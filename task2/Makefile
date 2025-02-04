@@ -12,4 +12,4 @@ cfg_build: cfg/cfg.cpp
 	g++ -std=c++11 -o cfg/cfg cfg/cfg.cpp
 
 clean:
-	rm -f tool/count_int_ops cfg/cfg
+	rm -f tool/count_int_ops cfg/cfg dce/dce
