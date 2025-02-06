@@ -16,7 +16,7 @@ brench_dce: dce_build
 lvn_build: lvn
 
 lvn: lvn.cpp ../task2/cfg/cfg_utils.cpp
-	g++ -std=c++11 -o lvn lvn.cpp ../task2/cfg/cfg_utils.cpp
+	g++ -std=c++20 -o lvn lvn.cpp ../task2/cfg/cfg_utils.cpp
 
 test_lvn: lvn_build
 	turnt lvn_test/*.bril -e lvn

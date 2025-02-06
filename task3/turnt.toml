@@ -1,2 +1,16 @@
 [envs.dce]
 command = "bril2json < {filename} | ./dce | bril2txt"
+
+[envs.dce_out]
+command = "bril2json < {filename} | ./dce | brili {args}"
+
+[envs.lvn]
+command = "bril2json < {filename} | ./lvn | ./dce | bril2txt"
+
+[envs.lvn_out]
+command = "bril2json < {filename} | ./lvn | ./dce | brili {args}"
+output.out = "-"
+
+[envs.baseline]
+command = "bril2json < {filename} | brili {args}"
+output.out = "-"
