@@ -1,0 +1,15 @@
+extract = 'total_dyn_inst: (\d+)'
+benchmarks = './dce_test/*.bril'
+
+[runs.baseline]
+pipeline = [
+    "bril2json",
+    "brili -p {args}",
+]
+
+[runs.dce]
+pipeline = [
+    "bril2json",
+    "./dce",
+    "brili -p {args}",
+]

@@ -1,1 +1,2 @@
+[envs.dce]
 command = "bril2json < {filename} | ./dce | bril2txt"
