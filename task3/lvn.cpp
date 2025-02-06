@@ -8,7 +8,7 @@
 
 #include "../task2/cfg/cfg_utils.hpp"
 
-const std::set<std::string> known_ops = {"add", "sub", "mul", "div", "eq", "lt", "gt", "le", "ge", "and", "or", "not", "fadd", "fsub", "fmul", "fdiv", "feq", "flt", "fgt", "fle", "fge"};
+const std::set<std::string> known_ops = {"add", "sub", "mul", "div", "eq", "lt", "gt", "le", "ge", "and", "or", "not", "fadd", "fsub", "fmul", "fdiv", "feq", "flt", "fgt", "fle", "fge", "const"};
 const std::string id_prefix = "lvnv_";
 int id_num = 0;
 

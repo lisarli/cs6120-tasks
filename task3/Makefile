@@ -25,19 +25,6 @@ test_lvn: lvn_build
 brench_lvn: lvn_build
 	brench lvn_brench.toml
 
-# --- bash shortcuts ---
-check_output:
-	@for file in $(TEST_DIR)/*.bril; do \
-		bril2json < "$$file" | brili > out1.txt; \
-		bril2json < "$$file" | ./$(EXEC) | brili > out2.txt; \
-		if diff -q out1.txt out2.txt > /dev/null; then \
-			echo "$$file: match"; \
-		else \
-			echo "$$file: MISMATCH"; \
-			diff out1.txt out2.txt; \
-		fi; \
-	done; \
-	rm -f out1.txt out2.txt
-
+# --- clean ---
 clean:
 	rm -f dce lvn
