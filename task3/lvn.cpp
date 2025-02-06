@@ -16,6 +16,8 @@ class Value {
 public:
     json instr;
 
+    Value() {}
+
     Value(json instr){
         instr["dest"] = "";
         this->instr = instr;
@@ -70,7 +72,7 @@ void lvn_block(Block& b){
         // std::cout << "updating args" << std::endl;
         if(instr.contains("args")){
             for(auto& var: instr["args"]){
-                // std::cout << "searching for " << var << ", contains is " << var_to_id.contains(var) << std::endl;
+                // std::cout << "searching for " << var << ", maps to " << var_to_id[var] << std::endl;
                 if(var_to_id.count(var)){
                     var = var_to_id[var];
                 } else{
@@ -80,14 +82,20 @@ void lvn_block(Block& b){
         }
         // std::cout << "updated args: " << instr << std::endl;
 
-        bool is_store_op = instr.contains("op") && known_ops.count(instr["op"]);
-        if(is_store_op){
-            // std::cout << "is store op" << std::endl;
-            Value v(instr);
+        Value v;
+        bool has_val = instr.contains("op") && known_ops.count(instr["op"]);
+        bool new_val = true;
+        std::string id;
+        if(instr.contains("dest")){ id = instr["dest"]; }
+
+        if(has_val){
+            // std::cout << "is has val op" << std::endl;
+            v = Value(instr);
             if(table.count(v)){
+                new_val = false;
                 // std::cout << "found in table" << std::endl;
                 // replace instruction with id if value exists
-                auto& id = table[v];
+                id = table[v];
                 auto dest = instr["dest"];
                 // make dead code to be cleaned up
                 b[i] = json{
@@ -97,20 +105,22 @@ void lvn_block(Block& b){
                     {"args", {id}}
                 };
                 var_to_id[dest] = id;
-            } else{
-                // std::cout << "not found in table" << std::endl;
-                // create new id
-                std::string dest = instr["dest"];
-                std::string id = dest;
-                if(!last_def[i]){
-                    id = id_prefix + std::to_string(id_num);
-                    id_num++;
-                    instr["dest"] = id;
-                }
-                table[v] = id;
-                var_to_id[dest] = id;
-                // std::cout << "mapped to " << id << " in table" << std::endl;
             }
+        }
+
+        if(instr.contains("dest")){
+            // create new id
+            std::string dest = instr["dest"];
+            if(!last_def[i]){
+                id = id_prefix + std::to_string(id_num);
+                id_num++;
+                instr["dest"] = id;
+            }
+            if(has_val && new_val){
+                table[v] = id;
+            }
+            var_to_id[dest] = id;
+            // std::cout << "mapped to " << id << " in table" << std::endl;
         }
         // std::cout << "updated instr: " << instr << std::endl;
         // std::cout << "iter done" << std::endl << std::endl;

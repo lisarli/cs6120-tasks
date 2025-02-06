@@ -19,7 +19,8 @@ lvn: lvn.cpp ../task2/cfg/cfg_utils.cpp
 	g++ -std=c++20 -o lvn lvn.cpp ../task2/cfg/cfg_utils.cpp
 
 test_lvn: lvn_build
-	turnt lvn_test/*.bril -e lvn
+	turnt lvn_test/*.bril -e lvn_out
+	turnt core/*.bril -e lvn_out
 
 brench_lvn: lvn_build
 	brench lvn_brench.toml
