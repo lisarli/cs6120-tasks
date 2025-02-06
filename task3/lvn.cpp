@@ -9,25 +9,31 @@
 #include "../task2/cfg/cfg_utils.hpp"
 
 const std::set<std::string> known_ops = {"add", "sub", "mul", "div", "eq", "lt", "gt", "le", "ge", "and", "or", "not", "fadd", "fsub", "fmul", "fdiv", "feq", "flt", "fgt", "fle", "fge", "const"};
+const std::set<std::string> comm_ops = {"add","mul","eq","and","or","fadd","fmul","feq"};
 const std::string id_prefix = "lvnv_";
 int id_num = 0;
 
 class Value {
 public:
-    json instr;
+    json canon_instr;
 
     Value() {}
 
     Value(json instr){
-        instr["dest"] = "";
-        this->instr = instr;
+        // std::cout << "getting canonical for: " << instr << std::endl;
+        canon_instr = instr;
+        canon_instr["dest"] = "";
+
+        // make canonical representation if commutative
+        if(comm_ops.count(instr["op"])){
+            auto& args = canon_instr["args"];
+            std::sort(args.begin(),args.end());
+        }
+        // std::cout << "got canonical: " << canon_instr << std::endl;
     }
 
     bool operator==(const Value& other) const {
-        if(instr["op"] == "add" || instr["op"] == "mul"){
-            // TODO: commutativity
-        }
-        return instr == other.instr;
+        return canon_instr == other.canon_instr;
     }
 };
 
@@ -36,7 +42,7 @@ struct std::hash<Value>
 {
   std::size_t operator()(const Value& v) const
   {
-    return std::hash<json>{}(v.instr);
+    return std::hash<json>{}(v.canon_instr);
   }
 };
 
