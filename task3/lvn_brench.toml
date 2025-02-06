@@ -15,10 +15,3 @@ pipeline = [
     "brili -p {args}",
 ]
 
-[runs.pydce]
-pipeline = [
-    "bril2json",
-    "python3 ../bril/examples/lvn.py",
-    "python3 ../bril/examples/tdce.py tdce+",
-    "brili -p {args}",
-]
