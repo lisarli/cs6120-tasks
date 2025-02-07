@@ -1,5 +1,5 @@
 extract = 'total_dyn_inst: (\d+)'
-benchmarks = './core/*.bril'
+benchmarks = './lvn_test/*.bril'
 
 [runs.baseline]
 pipeline = [

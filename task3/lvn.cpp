@@ -86,6 +86,7 @@ void lvn_block(Block& b){
 
         // update args according to var_to_id
         // std::cout << "updating args" << std::endl;
+        bool first_live_in = false;
         if(instr.contains("args")){
             for(auto& var: instr["args"]){
                 // std::cout << "searching for " << var << ", contains is " << var_to_id.count(var) << std::endl;
@@ -95,6 +96,7 @@ void lvn_block(Block& b){
                 } else{
                     // live-in
                     // std::cout << "inserting live in with id " << id_num << ", currently in var " << var << std::endl;
+                    first_live_in = true;
                     var_to_id[var] = id_num;
                     id_to_var[id_num] = var;
                     id_num++;
@@ -111,11 +113,13 @@ void lvn_block(Block& b){
         if(has_val){
             // std::cout << "is has val op" << std::endl;
             v = Value(instr, var_to_id);
+            // std::cout << "checking for value: " << v.canon_instr << std::endl;
             if(table_new.count(v)){
                 new_val = false;
                 // std::cout << "found in table" << std::endl;
                 // replace instruction with id if value exists
                 dest_id = table_new[v];
+
                 auto dest = instr["dest"];
                 // make dead code to be cleaned up
                 b[i] = json{
@@ -144,6 +148,10 @@ void lvn_block(Block& b){
                 var_to_id[lvnv_name] = dest_id;
                 id_to_var[dest_id] = lvnv_name;
                 // std::cout << "mapped new value " << v.canon_instr << " to " << dest_id << " in table" << std::endl;
+            }
+            // copy propagation
+            if(instr["op"]=="id" && !first_live_in){
+                dest_id = var_to_id[instr["args"][0]];
             }
             // std::cout << "mapping var " << dest << " to " << dest_id << ", which maps to " << id_to_var[dest_id] << std::endl;
             var_to_id[dest] = dest_id;
