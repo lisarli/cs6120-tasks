@@ -45,8 +45,10 @@ std::map<std::string,int> get_label_ids(std::vector<Block> bb){
 Cfg get_cfg(std::vector<Block> bb){
     auto labels_to_id = get_label_ids(bb);
     Cfg cfg;
+    cfg.blocks = bb;
 
-    for(int i = 0; i < bb.size(); i++){
+    int i;
+    for(i = 0; i < bb.size(); i++){
         auto& block = bb[i];
         auto& last = block[block.size()-1];
         std::vector<int> succ;
@@ -60,10 +62,27 @@ Cfg get_cfg(std::vector<Block> bb){
             succ.push_back(i+1);
         }
 
-        cfg[i] = succ;
+        cfg.succs[i] = succ;
+
+        for(int node: succ){
+            cfg.preds[node].push_back(i);
+        }
+    }
+
+    // add empty entry block if first block has predecessor
+    if(!cfg.preds[0].empty()){
+        Block emptyBlock;
+        cfg.blocks.push_back(emptyBlock);
+        cfg.succs[i].push_back(0);
+        cfg.preds[0].push_back(i);
     }
 
     return cfg;
+}
+
+Cfg get_cfg_func(const json& func){
+    auto bb = get_blocks(func);
+    return get_cfg(bb);
 }
 
 void print_bb(std::vector<Block> bb){
@@ -78,7 +97,7 @@ void print_bb(std::vector<Block> bb){
 
 void print_cfg(Cfg cfg){
     std::cout << "\t--- CFG ---"  << std::endl;
-    for(const auto& pair: cfg){
+    for(const auto& pair: cfg.succs){
         std::cout << "\t" << pair.first << " goes to ";
         for(const auto& cur: pair.second){
             std::cout << cur << " ";

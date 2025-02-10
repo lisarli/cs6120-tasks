@@ -13,7 +13,9 @@ int main() {
     
     for(const auto& func: j["functions"]){
         std::cout << "function: " << func["name"] << std::endl;
-        std::cout << "\targs: " << func["args"] << std::endl;
+        if(func.contains("args")){
+            std::cout << "\targs: " << func["args"] << std::endl;
+        }
 
         auto bb = get_blocks(func);
         print_bb(bb);
