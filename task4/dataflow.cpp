@@ -20,7 +20,6 @@ std::set<std::string> get_defs(const Block& b){
     return defs;
 }
 
-// perform defined vars dataflow analysis
 template<typename T, typename M, typename R, typename D>
 void df_worklist(const json& func, bool is_forward, T init, M merge, R transfer, D display){
     // get CFG
@@ -28,8 +27,8 @@ void df_worklist(const json& func, bool is_forward, T init, M merge, R transfer,
     std::vector<Block>& blocks = cfg.blocks;
 
     // set direction
-    auto& preds = cfg.preds;
-    auto& succs = cfg.succs;
+    auto preds = cfg.preds;
+    auto succs = cfg.succs;
     if(!is_forward){
         succs = cfg.preds;
         preds = cfg.succs;
@@ -73,6 +72,7 @@ void df_worklist(const json& func, bool is_forward, T init, M merge, R transfer,
     display(blocks.size(), in, out);
 }
 
+// defined vars df analysis
 void df_defined_vars(const json& func){
     // create init
     std::set<std::string> init;
@@ -116,20 +116,91 @@ void df_defined_vars(const json& func){
     df_worklist(func, true, init, merge, transfer, display);
 }
 
-int main() {
+// live vars df analysis
+void df_live_vars(const json& func){
+    // create init
+    std::set<std::string> init;
+
+    // create merge
+    auto merge = [](std::set<std::string>& in_b, const std::set<std::string>& pred){
+        in_b.insert(pred.begin(), pred.end());
+    };
+
+    // create transfer
+    auto transfer = [](const Block& block, std::set<std::string>& out_b, const std::set<std::string>& in_b){
+        std::set<std::string> out_new(in_b);
+
+        for(int i = block.size()-1; i >= 0; i--){
+            const json& instr = block[i];
+            // removed killed
+            std::string dest = "";
+            if(instr.contains("dest")){
+                out_new.erase(instr["dest"]);
+            }
+
+            // add uses
+            if(instr.contains("args")){
+                for(auto arg: instr["args"]){
+                    if(!out_new.contains(arg)){
+                        out_new.insert(arg);
+                    }
+                }
+            }
+        }
+
+        bool changed = out_new != out_b;
+        out_b = std::move(out_new);
+        return changed;
+    };
+
+    // create display
+    auto display = [](int num_blocks, std::unordered_map<int,std::set<std::string>>& in, std::unordered_map<int,std::set<std::string>>& out){
+        for(int i = 0; i < num_blocks; i++){
+            std::cout << "\tBlock " << i << std::endl;
+            std::cout << "\t\tin: ";
+            for(auto var: out[i]){ // flipped since backwards
+                std::cout << var << " ";
+            }
+            std::cout << std::endl;
+            std::cout << "\t\tout: ";
+            for(auto var: in[i]){
+                std::cout << var << " ";
+            }
+            std::cout << std::endl;
+        }
+    };
+
+    df_worklist(func, false, init, merge, transfer, display);
+}
+
+int main(int argc, char* argv[]) {
+    // get df type
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0] << " <defined|live>" << std::endl;
+        return 1;
+    }
+    std::string df_type = argv[1];
+
     // open bril json
     json j;
     try {
         std::cin >> j;
     } catch (const json::parse_error& e) {
-        std::cerr << "ERROR: Failed to parse JSON from stdin: " << e.what() << std::endl;
+        std::cerr << "ERROR: Failed to parse JSON from stdin, " << e.what() << std::endl;
         return 1;
     }
     
-    // do dataflow analysis
+    // do analysis
     for(auto& func: j["functions"]){
         std::cout << "analyzing func: " << func["name"] << std::endl;
-        df_defined_vars(func);
+        if(df_type == "defined"){
+            df_defined_vars(func);
+        } else if(df_type == "live"){
+            df_live_vars(func);
+        } else{
+            std::cout << "ERROR: Unknown df type, got " << df_type << std::endl;
+            return 1;
+        }
         std::cout << std::endl;
     }
 
