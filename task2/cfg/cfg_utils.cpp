@@ -70,11 +70,13 @@ Cfg get_cfg(std::vector<Block> bb){
     }
 
     // add empty entry block if first block has predecessor
+    cfg.entryIdx = 0;
     if(!cfg.preds[0].empty()){
         Block emptyBlock;
         cfg.blocks.push_back(emptyBlock);
         cfg.succs[i].push_back(0);
         cfg.preds[0].push_back(i);
+        cfg.entryIdx = i;
     }
 
     return cfg;
