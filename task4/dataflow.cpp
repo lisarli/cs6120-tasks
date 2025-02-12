@@ -69,7 +69,7 @@ void df_worklist(const json& func, bool is_forward, T init, M merge, R transfer,
     }
     
     // display analysis
-    display(blocks.size(), in, out);
+    display(blocks, in, out);
 }
 
 // defined vars df analysis
@@ -97,17 +97,34 @@ void df_defined_vars(const json& func){
     };
 
     // create display
-    auto display = [](int num_blocks, std::unordered_map<int,std::set<std::string>>& in, std::unordered_map<int,std::set<std::string>>& out){
-        for(int i = 0; i < num_blocks; i++){
-            std::cout << "\tBlock " << i << std::endl;
-            std::cout << "\t\tin: ";
-            for(auto var: in[i]){
-                std::cout << var << " ";
+    auto display = [](std::vector<Block>& blocks, std::unordered_map<int,std::set<std::string>>& in, std::unordered_map<int,std::set<std::string>>& out){
+        int empty_block_counter = 1;
+        for(int i = 0; i < blocks.size(); i++){
+            auto label = "b" + std::to_string(empty_block_counter);
+            if (blocks[i][0].contains("label")) {
+                label = blocks[i][0]["label"];
+            } else {
+                empty_block_counter++;
+            }
+            std::cout << label << ":" << std::endl;
+            std::cout << "  in:  ";
+            if (in[i].empty()) {
+                std::cout << "∅";
+            } else {
+                for (auto iter = in[i].begin(); iter != in[i].end(); iter++) {
+                    if (iter != in[i].begin()) std::cout << ", ";
+                    std::cout << *iter;
+                }
             }
             std::cout << std::endl;
-            std::cout << "\t\tout: ";
-            for(auto var: out[i]){
-                std::cout << var << " ";
+            std::cout << "  out: ";
+            if (out[i].empty()) {
+                std::cout << "∅";
+            } else {
+                for (auto iter = out[i].begin(); iter != out[i].end(); iter++) {
+                    if (iter != out[i].begin()) std::cout << ", ";
+                    std::cout << *iter;
+                }
             }
             std::cout << std::endl;
         }
@@ -154,17 +171,34 @@ void df_live_vars(const json& func){
     };
 
     // create display
-    auto display = [](int num_blocks, std::unordered_map<int,std::set<std::string>>& in, std::unordered_map<int,std::set<std::string>>& out){
-        for(int i = 0; i < num_blocks; i++){
-            std::cout << "\tBlock " << i << std::endl;
-            std::cout << "\t\tin: ";
-            for(auto var: out[i]){ // flipped since backwards
-                std::cout << var << " ";
+    auto display = [](std::vector<Block>& blocks, std::unordered_map<int,std::set<std::string>>& in, std::unordered_map<int,std::set<std::string>>& out){
+        int empty_block_counter = 1;
+        for(int i = 0; i < blocks.size(); i++){
+            auto label = "b" + std::to_string(empty_block_counter);
+            if (blocks[i][0].contains("label")) {
+                label = blocks[i][0]["label"];
+            } else {
+                empty_block_counter++;
+            }
+            std::cout << label << ":" << std::endl;
+            std::cout << "  in:  ";
+            if (out[i].empty()) {
+                std::cout << "∅";
+            } else {
+                for (auto iter = out[i].begin(); iter != out[i].end(); iter++) {
+                    if (iter != out[i].begin()) std::cout << ", ";
+                    std::cout << *iter;
+                }
             }
             std::cout << std::endl;
-            std::cout << "\t\tout: ";
-            for(auto var: in[i]){
-                std::cout << var << " ";
+            std::cout << "  out: ";
+            if (in[i].empty()) {
+                std::cout << "∅";
+            } else {
+                for (auto iter = in[i].begin(); iter != in[i].end(); iter++) {
+                    if (iter != in[i].begin()) std::cout << ", ";
+                    std::cout << *iter;
+                }
             }
             std::cout << std::endl;
         }
