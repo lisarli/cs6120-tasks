@@ -76,11 +76,11 @@ void df_worklist(const json& func, bool is_forward, T init, M merge, R transfer,
 void df_defined_vars(const json& func){
     // create init
     std::set<std::string> init;
-    if(func.contains("args")){
-        for(auto arg: func["args"]){
-            init.insert(arg["name"]);
-        }
-    }
+    // if(func.contains("args")){
+    //     for(auto arg: func["args"]){
+    //         init.insert(arg["name"]);
+    //     }
+    // }
 
     // create merge
     auto merge = [](std::set<std::string>& in_b, const std::set<std::string>& pred){
