@@ -226,7 +226,7 @@ int main(int argc, char* argv[]) {
     
     // do analysis
     for(auto& func: j["functions"]){
-        std::cout << "analyzing func: " << func["name"] << std::endl;
+        // std::cout << "analyzing func: " << func["name"] << std::endl;
         if(df_type == "defined"){
             df_defined_vars(func);
         } else if(df_type == "live"){
