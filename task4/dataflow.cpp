@@ -57,8 +57,7 @@ void df_worklist(const json& func, bool is_forward, T init, M merge, R transfer,
         }
 
         // transfer through block
-        bool changed = transfer(blocks[b], out[b], in[b]);
-        
+        bool changed = transfer(blocks[b], out[b], in[b], b);
 
         // queue successors if changed
         if(changed){
@@ -88,7 +87,7 @@ void df_defined_vars(const json& func){
     };
 
     // create transfer
-    auto transfer = [](const Block& block, std::set<std::string>& out_b, const std::set<std::string>& in_b){
+    auto transfer = [](const Block& block, std::set<std::string>& out_b, const std::set<std::string>& in_b, int b){
         int prev_size = out_b.size();
         auto defs = get_defs(block);
         defs.insert(in_b.begin(), in_b.end());
@@ -133,6 +132,68 @@ void df_defined_vars(const json& func){
     df_worklist(func, true, init, merge, transfer, display);
 }
 
+// reaching defs df analysis
+void df_reaching_defs(const json& func){
+    // map var names to locations of all reaching defs
+    using DefStore = std::unordered_map<std::string,std::set<std::string>>;
+
+    // create init
+    DefStore init;
+
+    // create merge
+    auto merge = [](DefStore& in_b, const DefStore& pred){
+        for(const auto& cur: pred){
+            auto& prev_defs = cur.second;
+            in_b[cur.first].insert(prev_defs.begin(), prev_defs.end());
+        }
+    };
+
+    // create transfer
+    auto transfer = [](const Block& block, DefStore& out_b, const DefStore& in_b, int b){
+        auto prev_out_b = out_b;
+        out_b = in_b;
+        std::string block_id = "b" + std::to_string(b) + ".";
+        for(int i = 0; i < block.size(); i++){
+            const auto& instr = block[i];
+            if(instr.contains("dest")){
+                out_b[instr["dest"]] = {block_id + std::to_string(i)};
+            }
+        }
+        return prev_out_b != out_b;
+    };
+
+    // create display
+    auto display = [](const std::vector<Block>& blocks, std::unordered_map<int,DefStore>& in, std::unordered_map<int,DefStore>& out){
+        for(int i = 0; i < blocks.size(); i++){
+            std::cout << "b" << i << std::endl;
+            
+            // display in
+            std::cout << "  in:  " << std::endl;
+            for(const auto& cur: in[i]){
+                std::cout << "    " << cur.first << ":  ";
+                for(const auto& def: cur.second){
+                    std::cout << def << " ";
+                }
+                std::cout << std::endl;
+            }
+            std::cout << std::endl;
+            
+            // display out
+            std::cout << "  out:  " << std::endl;
+            for(const auto& cur: out[i]){
+                std::cout << "    " << cur.first << ":  ";
+                for(const auto& def: cur.second){
+                    std::cout << def << " ";
+                }
+                std::cout << std::endl;
+            }
+            std::cout << std::endl;
+        }
+    };
+
+    df_worklist(func, true, init, merge, transfer, display);
+}
+
 // live vars df analysis
 void df_live_vars(const json& func){
     // create init
@@ -144,7 +205,7 @@ void df_live_vars(const json& func){
     };
 
     // create transfer
-    auto transfer = [](const Block& block, std::set<std::string>& out_b, const std::set<std::string>& in_b){
+    auto transfer = [](const Block& block, std::set<std::string>& out_b, const std::set<std::string>& in_b, int b){
         std::set<std::string> out_new(in_b);
 
         for(int i = block.size()-1; i >= 0; i--){
@@ -210,7 +271,7 @@ void df_live_vars(const json& func){
 int main(int argc, char* argv[]) {
     // get df type
     if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <defined|live>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <defined|live|reaching>" << std::endl;
         return 1;
     }
     std::string df_type = argv[1];
@@ -231,6 +292,8 @@ int main(int argc, char* argv[]) {
             df_defined_vars(func);
         } else if(df_type == "live"){
             df_live_vars(func);
+        } else if(df_type == "reaching"){
+            df_reaching_defs(func);
         } else{
             std::cout << "ERROR: Unknown df type, got " << df_type << std::endl;
             return 1;
