@@ -1,0 +1,7 @@
+@main(cond: bool) {
+  a: int = const 47;
+  b: int = const 42;
+.label1:
+  c: int = add a b;
+  d: bool = lt a c;
+}

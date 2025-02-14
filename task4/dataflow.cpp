@@ -71,6 +71,120 @@ void df_worklist(const json& func, bool is_forward, T init, M merge, R transfer,
     display(blocks, in, out);
 }
 
+using bril_value = std::variant<int, float, bool, char>;
+using bril_env = std::unordered_map<std::string, bril_value>;
+
+static void print_bril_env(const bril_env& env, const std::string name) {
+    std::cout << "\t" << name << ": { ";
+    for (const auto& [var, val] : env) {
+        std::visit([var](auto&& unwrapped) { std::cout << var << ": " << unwrapped << "; "; }, val);
+    }
+    std::cout << "}" << std::endl;
+}
+
+void df_const_propagation(const json& func) {
+
+    std::unordered_map<std::string, bril_value> init;
+
+    auto merge = [](bril_env& in_b, bril_env& out_pred) {
+        for (const auto& [var, val] : out_pred) {
+            auto it = in_b.find(var);
+            if (it == in_b.end()) {
+                in_b.insert({var, val});
+            } else if (it->second != val) {
+                in_b.erase(var);
+            }
+        }
+    };
+
+    auto transfer = [](const Block& block, bril_env& out_b, const bril_env& in_b, int b) {
+        bril_env old_out = out_b;
+        if (out_b.empty()) out_b.insert(in_b.begin(), in_b.end()); // ??
+
+        for (const auto& inst : block) {
+            if (inst.contains("value")) {
+                std::string type = inst["type"].template get<std::string>();
+                if (type == "int") {
+                    out_b.insert({ inst["dest"].template get<std::string>(), inst["value"].template get<int>() });
+                }
+                else if (type == "float") {
+                    out_b.insert({ inst["dest"].template get<std::string>(), inst["value"].template get<float>() });
+                }
+                else if (type == "bool") {
+                    out_b.insert({ inst["dest"].template get<std::string>(), inst["value"].template get<bool>() });
+                }
+                else if (type == "char") {
+                    out_b.insert({ inst["dest"].template get<std::string>(), *(inst["value"].template get<std::string>().c_str()) });
+                }
+            }
+            if (!inst.contains("op") || !inst.contains("dest") || !inst.contains("args")) continue;
+            std::string op = inst["op"].template get<std::string>();
+            std::string dest = inst["dest"].template get<std::string>();
+            auto args = inst["args"];
+            std::vector<bril_value> values;
+            for (auto arg : args) {
+                std::string var = arg.template get<std::string>();
+                if (out_b.find(var) == out_b.end()) {
+                    out_b.erase(dest); // dest depends on a non-const; need to invalidate
+                    goto next_inst;
+                }
+                values.push_back(out_b.find(var)->second);
+            }
+
+            if (op == "add") out_b.insert({ dest, std::get<int>(values[0]) + std::get<int>(values[1]) });
+            else if (op == "mul") out_b.insert({ dest, std::get<int>(values[0]) * std::get<int>(values[1]) });
+            else if (op == "sub") out_b.insert({ dest, std::get<int>(values[0]) - std::get<int>(values[1]) });
+            else if (op == "div") out_b.insert({ dest, std::get<int>(values[0]) / std::get<int>(values[1]) });
+            else if (op == "eq") out_b.insert({ dest, std::get<int>(values[0]) == std::get<int>(values[1]) });
+            else if (op == "lt") out_b.insert({ dest, std::get<int>(values[0]) < std::get<int>(values[1]) });
+            else if (op == "gt") out_b.insert({ dest, std::get<int>(values[0]) > std::get<int>(values[1]) });
+            else if (op == "le") out_b.insert({ dest, std::get<int>(values[0]) <= std::get<int>(values[1]) });
+            else if (op == "ge") out_b.insert({ dest, std::get<int>(values[0]) >= std::get<int>(values[1]) });
+
+            else if (op == "fadd") out_b.insert({ dest, std::get<float>(values[0]) + std::get<float>(values[1]) });
+            else if (op == "fmul") out_b.insert({ dest, std::get<float>(values[0]) * std::get<float>(values[1]) });
+            else if (op == "fsub") out_b.insert({ dest, std::get<float>(values[0]) - std::get<float>(values[1]) });
+            else if (op == "fdiv") out_b.insert({ dest, std::get<float>(values[0]) / std::get<float>(values[1]) });
+            else if (op == "feq") out_b.insert({ dest, std::get<float>(values[0]) == std::get<float>(values[1]) });
+            else if (op == "flt") out_b.insert({ dest, std::get<float>(values[0]) < std::get<float>(values[1]) });
+            else if (op == "fgt") out_b.insert({ dest, std::get<float>(values[0]) > std::get<float>(values[1]) });
+            else if (op == "fle") out_b.insert({ dest, std::get<float>(values[0]) <= std::get<float>(values[1]) });
+            else if (op == "fge") out_b.insert({ dest, std::get<float>(values[0]) >= std::get<float>(values[1]) });
+
+            else if (op == "not") out_b.insert({ dest, !std::get<bool>(values[0]) });
+            else if (op == "and") out_b.insert({ dest, std::get<bool>(values[0]) && std::get<bool>(values[1]) });
+            else if (op == "or") out_b.insert({ dest, std::get<bool>(values[0]) || std::get<bool>(values[1]) });
+
+            // TODO add char insts
+            
+            else if (op == "id") out_b.insert({ dest, values[0] });
+            else continue;
+
+            next_inst:;
+        }
+
+        return old_out != out_b;
+    };
+
+    auto display = [](std::vector<Block>& blocks, std::unordered_map<int, bril_env>& in, std::unordered_map<int, bril_env> out) {
+        int unlabeled_block_count = 0;
+        for (int i = 0; i < blocks.size(); ++i) {
+            if (blocks[i].size() == 0) continue;
+            std::string label = "b" + std::to_string(unlabeled_block_count);
+            if (blocks[i][0].contains("label")) {
+                label = blocks[i][0]["label"].template get<std::string>();
+            } else {
+                ++unlabeled_block_count;
+            }
+            std::cout << label << std::endl;
+            print_bril_env(in[i], "in");
+            print_bril_env(out[i], "out");
+        }
+    };
+
+    df_worklist(func, true, init, merge, transfer, display);
+}
+
 // defined vars df analysis
 void df_defined_vars(const json& func){
     // create init
@@ -271,7 +385,7 @@ void df_live_vars(const json& func){
 int main(int argc, char* argv[]) {
     // get df type
     if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <defined|live|reaching>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <defined|live|reaching|constprop>" << std::endl;
         return 1;
     }
     std::string df_type = argv[1];
@@ -294,6 +408,8 @@ int main(int argc, char* argv[]) {
             df_live_vars(func);
         } else if(df_type == "reaching"){
             df_reaching_defs(func);
+        } else if (df_type == "constprop") {
+            df_const_propagation(func);
         } else{
             std::cout << "ERROR: Unknown df type, got " << df_type << std::endl;
             return 1;
