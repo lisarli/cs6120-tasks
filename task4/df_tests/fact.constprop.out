@@ -1,0 +1,13 @@
+b0
+	in: { }
+	out: { result: 1; i: 8; }
+header
+	in: { zero: 0; one: 1; result: ?; cond: ?; i: ?; }
+	out: { zero: 0; result: ?; one: 1; i: ?; cond: ?; }
+body
+	in: { one: 1; result: ?; i: ?; cond: ?; zero: 0; }
+	out: { result: ?; one: 1; cond: ?; i: ?; zero: 0; }
+end
+	in: { one: 1; result: ?; i: ?; cond: ?; zero: 0; }
+	out: { result: ?; one: 1; cond: ?; i: ?; zero: 0; }
+

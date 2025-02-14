@@ -9,3 +9,7 @@ output."live.out" = "-"
 [envs.reaching]
 command = "bril2json < {filename} | ../df reaching"
 output."reaching.out" = "-"
+
+[envs.constprop]
+command = "bril2json < {filename} | ../df constprop"
+output."constprop.out" = "-"

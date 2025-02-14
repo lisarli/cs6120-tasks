@@ -1,0 +1,7 @@
+b1:
+  in:  ∅
+  out: a, b
+label1:
+  in:  a, b
+  out: ∅
+

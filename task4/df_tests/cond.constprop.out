@@ -1,0 +1,13 @@
+b0
+	in: { }
+	out: { a: 47; b: 42; cond: 1; }
+left
+	in: { a: 47; b: 42; cond: 1; }
+	out: { a: 47; c: 5; b: 42; cond: 1; }
+right
+	in: { a: 47; b: 42; cond: 1; }
+	out: { a: 47; c: 10; b: 42; cond: 1; }
+end
+	in: { a: 47; c: ?; b: 42; cond: 1; }
+	out: { c: ?; a: 47; b: 42; cond: 1; d: ?; }
+
