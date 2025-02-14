@@ -155,7 +155,13 @@ void df_const_propagation(const json& func) {
             else if (op == "and") out_b.insert({ dest, std::get<bool>(values[0]) && std::get<bool>(values[1]) });
             else if (op == "or") out_b.insert({ dest, std::get<bool>(values[0]) || std::get<bool>(values[1]) });
 
-            // TODO add char insts
+            else if (op == "ceq") out_b.insert({ dest, std::get<char>(values[0]) == std::get<char>(values[1]) });
+            else if (op == "clt") out_b.insert({ dest, std::get<char>(values[0]) < std::get<char>(values[1]) });
+            else if (op == "cgt") out_b.insert({ dest, std::get<char>(values[0]) > std::get<char>(values[1]) });
+            else if (op == "cle") out_b.insert({ dest, std::get<char>(values[0]) <= std::get<char>(values[1]) });
+            else if (op == "cge") out_b.insert({ dest, std::get<char>(values[0]) >= std::get<char>(values[1]) });
+            else if (op == "char2int") out_b.insert({ dest, (int) std::get<char>(values[0]) });
+            else if (op == "int2char") out_b.insert({ dest, (char) std::get<int>(values[0]) });
             
             else if (op == "id") out_b.insert({ dest, values[0] });
             else continue;
