@@ -71,15 +71,21 @@ void df_worklist(const json& func, bool is_forward, T init, M merge, R transfer,
     display(blocks, in, out);
 }
 
-using bril_value = std::variant<int, float, bool, char>;
-using bril_env = std::unordered_map<std::string, std::optional<bril_value>>;
-// key not present = unknown, std::nullopt = non-constant
+using bril_value = std::variant<int, float, bool, char, int*>; // a very hacky workaround, int* as nullptr represents undefined or nonconst
+using bril_env = std::unordered_map<std::string, bril_value>;
 
 static void print_bril_env(const bril_env& env, const std::string name) {
     std::cout << "\t" << name << ": { ";
-    for (const auto& [var, opt] : env) {
-        if (!opt) std::cout << var << ": (non-const)" << "; ";
-        else std::visit([var](auto&& val) { std::cout << var << ": " << val << "; "; }, opt.value());
+    for (const auto& [var, val] : env) {
+        std::visit([var](auto&& unwrapped) {
+            using T = std::decay_t<decltype(unwrapped)>;
+            if(std::is_same_v<T, int*>) {
+                std::cout << var << ": ?; "; 
+            } else{
+                std::cout << var << ": " << unwrapped << "; ";
+            }
+        }, val);
+        
     }
     std::cout << "}" << std::endl;
 }
@@ -87,28 +93,25 @@ static void print_bril_env(const bril_env& env, const std::string name) {
 void df_const_propagation(const json& func) {
     bril_env init;
 
-    auto merge = [](bril_env& in_b, bril_env& out_pred) {
+    auto merge = [](bril_env& in_b, const bril_env& out_pred) {
         for (const auto& [var, val] : out_pred) {
             auto it = in_b.find(var);
-            if (it == in_b.end()) {     // undefined -> add
-                in_b.insert({ var, val });
-            } else if (
-                it->second == std::nullopt      // non-const
-                || it->second.value() != val    // or conflicting values -> invalidate
-            ) {
-                in_b.insert({ var, std::nullopt });
+            if (it != in_b.end()) {
+                if(std::holds_alternative<int*>(it->second) && std::get<int*>(it->second) == nullptr || it->second != val){
+                    in_b[var] = nullptr;
+                }
+            } else {
+                in_b[var] = val;
             }
         }
     };
 
     auto transfer = [](const Block& block, bril_env& out_b, const bril_env& in_b, int b) {
         bril_env old_out = out_b;
-        out_b.erase(out_b.begin(), out_b.end());
-        out_b.insert(in_b.begin(), in_b.end()); // ??
+        out_b = in_b;
 
         for (const auto& inst : block) {
-            // consts
-            if (inst.contains("value")) {
+            if (inst.contains("value")) { // same as if contains "const"
                 std::string type = inst["type"].template get<std::string>();
                 if (type == "int") {
                     out_b.insert({ inst["dest"].template get<std::string>(), inst["value"].template get<int>() });
@@ -125,6 +128,7 @@ void df_const_propagation(const json& func) {
                 continue;
             }
 
+            // extract values and check if consts
             if (!inst.contains("op") || !inst.contains("dest") || !inst.contains("args")) continue;
 
             std::string op = inst["op"].template get<std::string>();
@@ -133,46 +137,53 @@ void df_const_propagation(const json& func) {
             std::vector<bril_value> values;
             for (auto arg : args) {
                 std::string var = arg.template get<std::string>();
-                if (out_b.find(var) == out_b.end() || out_b.find(var)->second == std::nullopt) {
-                    out_b.insert({ dest, std::nullopt }); // dest depends on a non-const; need to invalidate
+                auto found = out_b.find(var);
+                if (found == out_b.end() || std::holds_alternative<int*>(found->second) && std::get<int*>(found->second) == nullptr) {
+                    out_b[dest] = nullptr; // dest depends on a non-const; need to invalidate
                     goto next_inst;
                 }
-                values.push_back((out_b.find(var)->second).value());
+                values.push_back((out_b.find(var)->second));
             }
-
-            if (op == "add") out_b.insert({ dest, std::get<int>(values[0]) + std::get<int>(values[1]) });
-            else if (op == "mul") out_b.insert({ dest, std::get<int>(values[0]) * std::get<int>(values[1]) });
-            else if (op == "sub") out_b.insert({ dest, std::get<int>(values[0]) - std::get<int>(values[1]) });
-            else if (op == "div") out_b.insert({ dest, std::get<int>(values[0]) / std::get<int>(values[1]) });
-            else if (op == "eq") out_b.insert({ dest, std::get<int>(values[0]) == std::get<int>(values[1]) });
-            else if (op == "lt") out_b.insert({ dest, std::get<int>(values[0]) < std::get<int>(values[1]) });
-            else if (op == "gt") out_b.insert({ dest, std::get<int>(values[0]) > std::get<int>(values[1]) });
-            else if (op == "le") out_b.insert({ dest, std::get<int>(values[0]) <= std::get<int>(values[1]) });
-            else if (op == "ge") out_b.insert({ dest, std::get<int>(values[0]) >= std::get<int>(values[1]) });
-
-            else if (op == "fadd") out_b.insert({ dest, std::get<float>(values[0]) + std::get<float>(values[1]) });
-            else if (op == "fmul") out_b.insert({ dest, std::get<float>(values[0]) * std::get<float>(values[1]) });
-            else if (op == "fsub") out_b.insert({ dest, std::get<float>(values[0]) - std::get<float>(values[1]) });
-            else if (op == "fdiv") out_b.insert({ dest, std::get<float>(values[0]) / std::get<float>(values[1]) });
-            else if (op == "feq") out_b.insert({ dest, std::get<float>(values[0]) == std::get<float>(values[1]) });
-            else if (op == "flt") out_b.insert({ dest, std::get<float>(values[0]) < std::get<float>(values[1]) });
-            else if (op == "fgt") out_b.insert({ dest, std::get<float>(values[0]) > std::get<float>(values[1]) });
-            else if (op == "fle") out_b.insert({ dest, std::get<float>(values[0]) <= std::get<float>(values[1]) });
-            else if (op == "fge") out_b.insert({ dest, std::get<float>(values[0]) >= std::get<float>(values[1]) });
-
-            else if (op == "not") out_b.insert({ dest, !std::get<bool>(values[0]) });
-            else if (op == "and") out_b.insert({ dest, std::get<bool>(values[0]) && std::get<bool>(values[1]) });
-            else if (op == "or") out_b.insert({ dest, std::get<bool>(values[0]) || std::get<bool>(values[1]) });
-
-            else if (op == "ceq") out_b.insert({ dest, std::get<char>(values[0]) == std::get<char>(values[1]) });
-            else if (op == "clt") out_b.insert({ dest, std::get<char>(values[0]) < std::get<char>(values[1]) });
-            else if (op == "cgt") out_b.insert({ dest, std::get<char>(values[0]) > std::get<char>(values[1]) });
-            else if (op == "cle") out_b.insert({ dest, std::get<char>(values[0]) <= std::get<char>(values[1]) });
-            else if (op == "cge") out_b.insert({ dest, std::get<char>(values[0]) >= std::get<char>(values[1]) });
-            else if (op == "char2int") out_b.insert({ dest, (int) std::get<char>(values[0]) });
-            else if (op == "int2char") out_b.insert({ dest, (char) std::get<int>(values[0]) });
             
-            else if (op == "id") out_b.insert({ dest, values[0] });
+            // integer ops
+            if (op == "add") out_b[dest] = std::get<int>(values[0]) + std::get<int>(values[1]);
+            else if (op == "mul") out_b[dest] = std::get<int>(values[0]) * std::get<int>(values[1]);
+            else if (op == "sub") out_b[dest] = std::get<int>(values[0]) - std::get<int>(values[1]);
+            else if (op == "div") out_b[dest] = std::get<int>(values[0]) / std::get<int>(values[1]);
+            else if (op == "eq") out_b[dest] = std::get<int>(values[0]) == std::get<int>(values[1]);
+            else if (op == "lt") out_b[dest] = std::get<int>(values[0]) < std::get<int>(values[1]);
+            else if (op == "gt") out_b[dest] = std::get<int>(values[0]) > std::get<int>(values[1]);
+            else if (op == "le") out_b[dest] = std::get<int>(values[0]) <= std::get<int>(values[1]);
+            else if (op == "ge") out_b[dest] = std::get<int>(values[0]) >= std::get<int>(values[1]);
+            
+            // float ops
+            else if (op == "fadd") out_b[dest] = std::get<float>(values[0]) + std::get<float>(values[1]);
+            else if (op == "fmul") out_b[dest] = std::get<float>(values[0]) * std::get<float>(values[1]);
+            else if (op == "fsub") out_b[dest] = std::get<float>(values[0]) - std::get<float>(values[1]);
+            else if (op == "fdiv") out_b[dest] = std::get<float>(values[0]) / std::get<float>(values[1]);
+            else if (op == "feq") out_b[dest] = std::get<float>(values[0]) == std::get<float>(values[1]);
+            else if (op == "flt") out_b[dest] = std::get<float>(values[0]) < std::get<float>(values[1]);
+            else if (op == "fgt") out_b[dest] = std::get<float>(values[0]) > std::get<float>(values[1]);
+            else if (op == "fle") out_b[dest] = std::get<float>(values[0]) <= std::get<float>(values[1]);
+            else if (op == "fge") out_b[dest] = std::get<float>(values[0]) >= std::get<float>(values[1]);
+
+            // bool ops
+            else if (op == "not") out_b[dest] = !std::get<bool>(values[0]);
+            else if (op == "and") out_b[dest] = std::get<bool>(values[0]) && std::get<bool>(values[1]);
+            else if (op == "or") out_b[dest] = std::get<bool>(values[0]) || std::get<bool>(values[1]);
+
+            // char ops
+            else if (op == "ceq") out_b[dest] = std::get<char>(values[0]) == std::get<char>(values[1]);
+            else if (op == "clt") out_b[dest] = std::get<char>(values[0]) < std::get<char>(values[1]);
+            else if (op == "cgt") out_b[dest] = std::get<char>(values[0]) > std::get<char>(values[1]);
+            else if (op == "cle") out_b[dest] = std::get<char>(values[0]) <= std::get<char>(values[1]);
+            else if (op == "cge") out_b[dest] = std::get<char>(values[0]) >= std::get<char>(values[1]);
+            else if (op == "char2int") out_b[dest] = static_cast<int>(std::get<char>(values[0]));
+            else if (op == "int2char") out_b[dest] = static_cast<char>(std::get<int>(values[0]));
+
+            // id op
+            else if (op == "id") out_b[dest] = values[0];
+
             else continue;
 
             next_inst:;
