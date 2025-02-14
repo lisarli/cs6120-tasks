@@ -72,36 +72,42 @@ void df_worklist(const json& func, bool is_forward, T init, M merge, R transfer,
 }
 
 using bril_value = std::variant<int, float, bool, char>;
-using bril_env = std::unordered_map<std::string, bril_value>;
+using bril_env = std::unordered_map<std::string, std::optional<bril_value>>;
+// key not present = unknown, std::nullopt = non-constant
 
 static void print_bril_env(const bril_env& env, const std::string name) {
     std::cout << "\t" << name << ": { ";
-    for (const auto& [var, val] : env) {
-        std::visit([var](auto&& unwrapped) { std::cout << var << ": " << unwrapped << "; "; }, val);
+    for (const auto& [var, opt] : env) {
+        if (!opt) std::cout << var << ": (non-const)" << "; ";
+        else std::visit([var](auto&& val) { std::cout << var << ": " << val << "; "; }, opt.value());
     }
     std::cout << "}" << std::endl;
 }
 
 void df_const_propagation(const json& func) {
-
-    std::unordered_map<std::string, bril_value> init;
+    bril_env init;
 
     auto merge = [](bril_env& in_b, bril_env& out_pred) {
         for (const auto& [var, val] : out_pred) {
             auto it = in_b.find(var);
-            if (it == in_b.end()) {
-                in_b.insert({var, val});
-            } else if (it->second != val) {
-                in_b.erase(var);
+            if (it == in_b.end()) {     // undefined -> add
+                in_b.insert({ var, val });
+            } else if (
+                it->second == std::nullopt      // non-const
+                || it->second.value() != val    // or conflicting values -> invalidate
+            ) {
+                in_b.insert({ var, std::nullopt });
             }
         }
     };
 
     auto transfer = [](const Block& block, bril_env& out_b, const bril_env& in_b, int b) {
         bril_env old_out = out_b;
-        if (out_b.empty()) out_b.insert(in_b.begin(), in_b.end()); // ??
+        out_b.erase(out_b.begin(), out_b.end());
+        out_b.insert(in_b.begin(), in_b.end()); // ??
 
         for (const auto& inst : block) {
+            // consts
             if (inst.contains("value")) {
                 std::string type = inst["type"].template get<std::string>();
                 if (type == "int") {
@@ -116,19 +122,22 @@ void df_const_propagation(const json& func) {
                 else if (type == "char") {
                     out_b.insert({ inst["dest"].template get<std::string>(), *(inst["value"].template get<std::string>().c_str()) });
                 }
+                continue;
             }
+
             if (!inst.contains("op") || !inst.contains("dest") || !inst.contains("args")) continue;
+
             std::string op = inst["op"].template get<std::string>();
             std::string dest = inst["dest"].template get<std::string>();
             auto args = inst["args"];
             std::vector<bril_value> values;
             for (auto arg : args) {
                 std::string var = arg.template get<std::string>();
-                if (out_b.find(var) == out_b.end()) {
-                    out_b.erase(dest); // dest depends on a non-const; need to invalidate
+                if (out_b.find(var) == out_b.end() || out_b.find(var)->second == std::nullopt) {
+                    out_b.insert({ dest, std::nullopt }); // dest depends on a non-const; need to invalidate
                     goto next_inst;
                 }
-                values.push_back(out_b.find(var)->second);
+                values.push_back((out_b.find(var)->second).value());
             }
 
             if (op == "add") out_b.insert({ dest, std::get<int>(values[0]) + std::get<int>(values[1]) });
