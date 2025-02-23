@@ -26,3 +26,5 @@ Cfg get_cfg_func(const json& func);
 void print_bb(std::vector<Block> bb);
 
 void print_cfg(Cfg cfg);
+
+std::string get_block_name(const Cfg& cfg, int block_idx);

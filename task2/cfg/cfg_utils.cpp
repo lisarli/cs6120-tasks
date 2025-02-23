@@ -108,3 +108,15 @@ void print_cfg(Cfg cfg){
     }
     std::cout << std::endl;
 }
+
+// get block name (label if it exists, entry if entry node)
+std::string get_block_name(const Cfg& cfg, int block_idx){
+    auto& block = cfg.blocks[block_idx];
+    if(block.size() > 0 && block[0].contains("label")){
+        return block[0]["label"];
+    }
+    if(block_idx == cfg.entryIdx){
+        return "entry";
+    }
+    return "b" + std::to_string(block_idx);
+}
