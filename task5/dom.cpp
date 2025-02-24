@@ -13,6 +13,7 @@
 
 
 using Dom = std::unordered_map<int,std::set<int>>;
+using DomTree = std::unordered_map<int,std::set<int>>;
 
 // get postorder traversal order
 void get_post_order(const Cfg& cfg, std::vector<int>& order, int cur_node, std::set<int>& visited){
@@ -37,7 +38,7 @@ std::vector<int> get_rev_post_order(const Cfg& cfg){
 }
 
 // get map of nodes to dominators
-Dom get_dom(const json& func){
+Dom get_dom(const json& func, bool verbose = false){
     Dom dom;
 
     // get CFG
@@ -89,7 +90,8 @@ Dom get_dom(const json& func){
         }
     }
 
-    // display
+    if (!verbose) return dom;
+
     for(const auto& cur: dom){
         std::cout << get_block_name(cfg, cur.first) << ": ";
         for(auto dominator: cur.second){
@@ -99,6 +101,66 @@ Dom get_dom(const json& func){
     }
 
     return dom;
+}
+
+Dom get_inverse_dom(const Dom& dom){
+    Dom inverse_dom;
+    for(const auto& cur: dom){
+        for(int dom_node: cur.second){
+            inverse_dom[dom_node].insert(cur.first);
+        }
+    }
+    return inverse_dom;
+}
+
+DomTree get_dom_tree(const json& func, const Dom& dom){
+    DomTree dom_tree;
+    Dom inverse_dom = get_inverse_dom(dom);
+
+    Dom no_self_inverse_dom = inverse_dom;
+    for(const auto& cur: no_self_inverse_dom){
+        int node = cur.first;
+        no_self_inverse_dom.at(node).erase(node);
+    }
+
+    // for each node find nodes strictly dominated by children of node
+    Dom children_dom = no_self_inverse_dom;
+    for(const auto& cur: children_dom){
+        int node = cur.first;
+        std::set<int> children;
+        for(int child: cur.second){
+            std::set<int> temp;
+            std::set_union(children.begin(), children.end(),
+                           no_self_inverse_dom.at(child).begin(), no_self_inverse_dom.at(child).end(),
+                           std::inserter(temp, temp.end()));
+            children = std::move(temp);
+        }
+        children_dom[node] = children;
+    }
+
+    // find domtree, filter nodes
+    for(const auto& cur: no_self_inverse_dom){
+        std::set<int> immediate;
+        for(int node: cur.second){
+            // if node not in children_dom
+            if(!children_dom[cur.first].contains(node)){
+                immediate.insert(node);
+            }
+        }
+        dom_tree[cur.first] = immediate;
+    }
+
+    //display
+    Cfg cfg = get_cfg_func(func);
+    for(const auto& cur: dom_tree){
+        std::cout << get_block_name(cfg, cur.first) << ": ";
+        for(int child: cur.second){
+            std::cout << get_block_name(cfg, child) << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    return dom_tree;
 }
 
 int main(int argc, char* argv[]) {
@@ -122,7 +184,10 @@ int main(int argc, char* argv[]) {
     auto& func = j["functions"][0]; // assume just main
 
     if(utility_type == "dom"){
-        get_dom(func);
+        get_dom(func, true);
+    } else if(utility_type == "tree"){
+        Dom dom = get_dom(func);
+        get_dom_tree(func, dom);
     } else{
         std::cout << "ERROR: Unknown df type, got " << utility_type << std::endl;
         return 1;
