@@ -117,21 +117,20 @@ DomTree get_dom_tree(const json& func, const Dom& dom){
     DomTree dom_tree;
     Dom inverse_dom = get_inverse_dom(dom);
 
-    Dom no_self_inverse_dom = inverse_dom;
-    for(const auto& cur: no_self_inverse_dom){
+    for(const auto& cur: inverse_dom){
         int node = cur.first;
-        no_self_inverse_dom.at(node).erase(node);
+        inverse_dom.at(node).erase(node);
     }
 
     // for each node find nodes strictly dominated by children of node
-    Dom children_dom = no_self_inverse_dom;
+    Dom children_dom = inverse_dom;
     for(const auto& cur: children_dom){
         int node = cur.first;
         std::set<int> children;
         for(int child: cur.second){
             std::set<int> temp;
             std::set_union(children.begin(), children.end(),
-                           no_self_inverse_dom.at(child).begin(), no_self_inverse_dom.at(child).end(),
+                           inverse_dom.at(child).begin(), inverse_dom.at(child).end(),
                            std::inserter(temp, temp.end()));
             children = std::move(temp);
         }
@@ -139,7 +138,7 @@ DomTree get_dom_tree(const json& func, const Dom& dom){
     }
 
     // find domtree, filter nodes
-    for(const auto& cur: no_self_inverse_dom){
+    for(const auto& cur: inverse_dom){
         std::set<int> immediate;
         for(int node: cur.second){
             // if node not in children_dom
