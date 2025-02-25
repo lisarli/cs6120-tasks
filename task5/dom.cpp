@@ -39,7 +39,7 @@ std::vector<int> get_rev_post_order(const Cfg& cfg){
 }
 
 // get map of nodes to dominators
-Dom get_dom(const json& func, bool verbose = false){
+Dom get_dom(const json& func){
     Dom dom;
 
     // get CFG
@@ -91,8 +91,11 @@ Dom get_dom(const json& func, bool verbose = false){
         }
     }
 
-    if (!verbose) return dom;
+    return dom;
+}
 
+// display nodes and dominators
+void print_dom(const Dom& dom, const Cfg& cfg){
     for(const auto& cur: dom){
         std::cout << get_block_name(cfg, cur.first) << ": ";
         for(auto dominator: cur.second){
@@ -100,8 +103,6 @@ Dom get_dom(const json& func, bool verbose = false){
         }
         std::cout << std::endl;
     }
-
-    return dom;
 }
 
 /* This method verifies that dominators given by the Dom struct for a node do indeed dominate that node. */
@@ -219,12 +220,12 @@ int main(int argc, char* argv[]) {
     // do analysis
     auto& func = j["functions"][0]; // assume just main
 
-    const Dom dom = get_dom(func, true);
+    const Dom dom = get_dom(func);
     const Cfg cfg = get_cfg_func(func);
-    verify_dominators(dom, cfg);
 
     if(utility_type == "dom"){
-
+        print_dom(dom, cfg);
+        verify_dominators(dom, cfg);
     } else if(utility_type == "tree"){
         get_dom_tree(func, dom);
     } else{
