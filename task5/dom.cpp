@@ -199,17 +199,12 @@ DomFrontier get_dom_frontier(const Dom& dom, const Cfg& cfg){
     for(const auto& cur: inverse_dom){
         int cur_node = cur.first;
         front[cur_node];
-        if(!inverse_dom.contains(cur_node)) continue;
 
-        for(int node = 0; node < cfg.blocks.size(); node++){
-            // check if not strictly dominated
-            if(node==cur_node || !inverse_dom.at(cur_node).contains(node)){
-                // check if dominate a predecessor
-                for(int pred: cfg.preds.at(node)){
-                    if(inverse_dom.at(cur_node).contains(pred)){
-                        // insert into dom frontier
-                        front[cur_node].insert(node);
-                    }
+        for(int dominated: inverse_dom[cur_node]){
+            for(int succ: cfg.succs.at(dominated)){
+                if(succ == cur_node || !inverse_dom.at(cur_node).contains(succ)){
+                    // insert into dom frontier
+                    front[cur_node].insert(succ);
                 }
             }
         }
