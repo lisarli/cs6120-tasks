@@ -4,6 +4,7 @@
 #include <numeric>
 #include <queue>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 
@@ -103,6 +104,42 @@ Dom get_dom(const json& func, bool verbose = false){
     return dom;
 }
 
+/* This method verifies that dominators given by the Dom struct for a node do indeed dominate that node. */
+void verify_dominators(const Dom& dom, const Cfg& cfg) {
+    for (const auto& [block, dominators] : dom) {
+        for (int dominator : dominators) {
+            if (dominator == cfg.entryIdx) continue;
+
+            // BFS from entry point, terminate when dominator is found
+            std::queue<int> queue(std::queue<int>::container_type(cfg.entryIdx));
+            std::set<int> seen{cfg.entryIdx};
+            while (!queue.empty()) {
+                int current = queue.front(); queue.pop();
+
+                // prune branches if dominator is reached
+                if (current == dominator) continue;
+
+                // If block is found then throw an exception
+                if (current == block) {
+                    throw std::runtime_error(
+                        "block "
+                        + get_block_name(cfg, dominator)
+                        + " is supposed to dominate " 
+                        + get_block_name(cfg, block)
+                        + " but a path to it from entry was found."
+                    );
+                }
+
+                for (int succ : cfg.succs.at(current)) {
+                    if (seen.find(succ) != seen.end()) continue;
+                    seen.insert(succ);
+                    queue.push(succ);
+                }
+            }
+        }
+    }
+}
+
 Dom get_inverse_dom(const Dom& dom){
     Dom inverse_dom;
     for(const auto& cur: dom){
@@ -182,10 +219,13 @@ int main(int argc, char* argv[]) {
     // do analysis
     auto& func = j["functions"][0]; // assume just main
 
+    const Dom dom = get_dom(func, true);
+    const Cfg cfg = get_cfg_func(func);
+    verify_dominators(dom, cfg);
+
     if(utility_type == "dom"){
-        get_dom(func, true);
+
     } else if(utility_type == "tree"){
-        Dom dom = get_dom(func);
         get_dom_tree(func, dom);
     } else{
         std::cout << "ERROR: Unknown df type, got " << utility_type << std::endl;
