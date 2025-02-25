@@ -13,8 +13,10 @@
 #include "../task2/cfg/cfg_utils.hpp"
 
 
-using Dom = std::unordered_map<int,std::set<int>>;
-using DomTree = std::unordered_map<int,std::set<int>>;
+using DomBase = std::unordered_map<int,std::set<int>>;
+using Dom = DomBase;
+using DomTree = DomBase;
+using DomFrontier = DomBase;
 
 // get postorder traversal order
 void get_post_order(const Cfg& cfg, std::vector<int>& order, int cur_node, std::set<int>& visited){
@@ -95,7 +97,7 @@ Dom get_dom(const json& func){
 }
 
 // display nodes and dominators
-void print_dom(const Dom& dom, const Cfg& cfg){
+void print_dom(const DomBase& dom, const Cfg& cfg){
     for(const auto& cur: dom){
         std::cout << get_block_name(cfg, cur.first) << ": ";
         for(auto dominator: cur.second){
@@ -151,7 +153,7 @@ Dom get_inverse_dom(const Dom& dom){
     return inverse_dom;
 }
 
-DomTree get_dom_tree(const json& func, const Dom& dom){
+DomTree get_dom_tree(const Dom& dom, const Cfg& cfg){
     DomTree dom_tree;
     Dom inverse_dom = get_inverse_dom(dom);
 
@@ -187,17 +189,33 @@ DomTree get_dom_tree(const json& func, const Dom& dom){
         dom_tree[cur.first] = immediate;
     }
 
-    //display
-    Cfg cfg = get_cfg_func(func);
-    for(const auto& cur: dom_tree){
-        std::cout << get_block_name(cfg, cur.first) << ": ";
-        for(int child: cur.second){
-            std::cout << get_block_name(cfg, child) << " ";
+    return dom_tree;
+}
+
+DomFrontier get_dom_frontier(const Dom& dom, const Cfg& cfg){
+    DomFrontier front;
+    auto inverse_dom = get_inverse_dom(dom);
+
+    for(const auto& cur: inverse_dom){
+        int cur_node = cur.first;
+        front[cur_node];
+        if(!inverse_dom.contains(cur_node)) continue;
+
+        for(int node = 0; node < cfg.blocks.size(); node++){
+            // check if not strictly dominated
+            if(node==cur_node || !inverse_dom.at(cur_node).contains(node)){
+                // check if dominate a predecessor
+                for(int pred: cfg.preds.at(node)){
+                    if(inverse_dom.at(cur_node).contains(pred)){
+                        // insert into dom frontier
+                        front[cur_node].insert(node);
+                    }
+                }
+            }
         }
-        std::cout << std::endl;
     }
 
-    return dom_tree;
+    return front;
 }
 
 int main(int argc, char* argv[]) {
@@ -227,8 +245,12 @@ int main(int argc, char* argv[]) {
         print_dom(dom, cfg);
         verify_dominators(dom, cfg);
     } else if(utility_type == "tree"){
-        get_dom_tree(func, dom);
-    } else{
+        auto tree = get_dom_tree(dom, cfg);
+        print_dom(tree, cfg);
+    } else if(utility_type == "frontier"){
+        auto front = get_dom_frontier(dom, cfg);
+        print_dom(front, cfg);
+    } else {
         std::cout << "ERROR: Unknown df type, got " << utility_type << std::endl;
         return 1;
     }

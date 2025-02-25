@@ -49,6 +49,10 @@ Cfg get_cfg(std::vector<Block> bb){
 
     int i;
     for(i = 0; i < bb.size(); i++){
+        // initialize with empty sets
+        cfg.preds[i];
+        cfg.succs[i];
+
         auto& block = bb[i];
         auto& last = block[block.size()-1];
         std::vector<int> succ;
@@ -77,6 +81,7 @@ Cfg get_cfg(std::vector<Block> bb){
         cfg.succs[i].push_back(0);
         cfg.preds[0].push_back(i);
         cfg.entryIdx = i;
+        cfg.preds[i];
     }
 
     return cfg;
