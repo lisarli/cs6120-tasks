@@ -231,23 +231,23 @@ int main(int argc, char* argv[]) {
     }
     
     // do analysis
-    auto& func = j["functions"][0]; // assume just main
+    for(auto& func: j["functions"]){
+        const Dom dom = get_dom(func);
+        const Cfg cfg = get_cfg_func(func);
 
-    const Dom dom = get_dom(func);
-    const Cfg cfg = get_cfg_func(func);
-
-    if(utility_type == "dom"){
-        print_dom(dom, cfg);
-        verify_dominators(dom, cfg);
-    } else if(utility_type == "tree"){
-        auto tree = get_dom_tree(dom, cfg);
-        print_dom(tree, cfg);
-    } else if(utility_type == "frontier"){
-        auto front = get_dom_frontier(dom, cfg);
-        print_dom(front, cfg);
-    } else {
-        std::cout << "ERROR: Unknown df type, got " << utility_type << std::endl;
-        return 1;
+        if(utility_type == "dom"){
+            print_dom(dom, cfg);
+            verify_dominators(dom, cfg);
+        } else if(utility_type == "tree"){
+            auto tree = get_dom_tree(dom, cfg);
+            print_dom(tree, cfg);
+        } else if(utility_type == "frontier"){
+            auto front = get_dom_frontier(dom, cfg);
+            print_dom(front, cfg);
+        } else {
+            std::cout << "ERROR: Unknown df type, got " << utility_type << std::endl;
+            return 1;
+        }
     }
 
     return 0;
