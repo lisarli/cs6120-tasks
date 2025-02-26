@@ -213,6 +213,51 @@ DomFrontier get_dom_frontier(const Dom& dom, const Cfg& cfg){
     return front;
 }
 
+void find_all_paths(const Cfg& cfg, int current, int target, std::set<int> current_path, std::set<std::set<int>>& all_paths) {
+    current_path.insert(current);
+    if (current == target) {
+        all_paths.insert(current_path);
+        return;
+    }
+    for (int next : cfg.succs.at(current)) {
+        if (current_path.contains(next)) continue;
+        find_all_paths(cfg, next, target, current_path, all_paths);
+    }
+}
+
+Dom find_dominators_brute_force(const Cfg& cfg) {
+    Dom dominators;
+    for (const auto& [block, _] : cfg.succs) {
+        std::transform(
+            cfg.succs.begin(), 
+            cfg.succs.end(), 
+            std::inserter(dominators[block], dominators[block].begin()), 
+            [](const auto& pair) { return pair.first; }
+        );
+    }
+    dominators[cfg.entryIdx] = {cfg.entryIdx};
+
+    for (const auto& [block, succs] : cfg.succs) {
+        if (block == cfg.entryIdx) continue;
+
+        std::set<std::set<int>> all_paths;
+        find_all_paths(cfg, cfg.entryIdx, block, {}, all_paths);
+        for (const std::set<int>& path : all_paths) {
+            std::set<int> intersection;
+            std::set_intersection(
+                dominators[block].begin(), 
+                dominators[block].end(), 
+                path.begin(), 
+                path.end(), 
+                std::inserter(intersection, intersection.begin())
+            );
+            dominators[block] = intersection;
+        }
+    }
+
+    return dominators;
+}
+
 int main(int argc, char* argv[]) {
     // get utility type
     if (argc < 2) {
@@ -233,12 +278,18 @@ int main(int argc, char* argv[]) {
     // do analysis
     auto& func = j["functions"][0]; // assume just main
 
-    const Dom dom = get_dom(func);
     const Cfg cfg = get_cfg_func(func);
+    const Dom dom = get_dom(func);
+    verify_dominators(dom, cfg);
+
+    const Dom dom_brute_force = find_dominators_brute_force(cfg);
+
+    if (dom != dom_brute_force) {
+        throw std::runtime_error("Dominators don't match up.");
+    }
 
     if(utility_type == "dom"){
         print_dom(dom, cfg);
-        verify_dominators(dom, cfg);
     } else if(utility_type == "tree"){
         auto tree = get_dom_tree(dom, cfg);
         print_dom(tree, cfg);
