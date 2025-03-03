@@ -260,7 +260,7 @@ void to_ssa(json& func){
     }
     if(cfg.entryIdx != 0){
         block_order.insert(block_order.begin(), ssa_blocks.size()-1);
-        block_order.erase(block_order.end());
+        block_order.pop_back();
     }
 
     // rewrite func as SSA

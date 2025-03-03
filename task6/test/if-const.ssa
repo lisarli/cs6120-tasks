@@ -1,0 +1,20 @@
+@main {
+  cond.0: bool = const true;
+  br cond.0 .true .false;
+.true:
+  b.1.init: int = undef;
+  a.0: int = const 0;
+  set a.1 a.0;
+  set b.1 b.1.init;
+  jmp .zexit;
+.false:
+  a.2.init: int = undef;
+  b.0: int = const 1;
+  set a.1 a.2.init;
+  set b.1 b.0;
+  jmp .zexit;
+.zexit:
+  b.1: int = get;
+  a.1: int = get;
+  print a.1;
+}
