@@ -1,0 +1,11 @@
+[envs.is_ssa]
+command = "bril2json < {filename} | ../ssa | python3 ../../bril/examples/is_ssa.py"
+output.is_ssa = "-"
+
+[envs.ssa]
+command = "bril2json < {filename} | ../ssa | bril2txt"
+output.ssa = "-"
+
+[envs.run]
+command = "bril2json < {filename} | ../ssa | brili -p {args}"
+output.out = "-"
