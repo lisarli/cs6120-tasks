@@ -4,12 +4,20 @@ std::vector<Block> get_blocks(const json& func){
     std::vector<Block> blocks;
     Block cur_block;
     const std::set<std::string> terms = {"br","jmp","ret"};
-
+    
+    bool got_ret = false;
     for(const auto& instr: func["instrs"]){
         bool is_label = instr.contains("label");
         bool is_term = !is_label && terms.count(instr["op"]);
+        bool is_ret = !is_label && instr["op"]=="ret";
+
+        if(got_ret && !is_label) continue;
+        if(is_ret) got_ret = true;
+
         if(!is_label){
             cur_block.push_back(instr);
+        } else{
+            got_ret = false;
         }
 
         if(is_label || is_term){
@@ -105,9 +113,9 @@ void print_bb(std::vector<Block> bb){
 void print_cfg(Cfg cfg){
     std::cout << "\t--- CFG ---"  << std::endl;
     for(const auto& pair: cfg.succs){
-        std::cout << "\t" << pair.first << " goes to ";
+        std::cout << "\t" << get_block_name(cfg, pair.first) << " goes to ";
         for(const auto& cur: pair.second){
-            std::cout << cur << " ";
+            std::cout << get_block_name(cfg, cur) << " ";
         }
         std::cout << std::endl;
     }

@@ -52,7 +52,9 @@ Dom get_dom(const json& func){
         for(int i = 0; i < order.size(); i++){   
             if(i == cfg.entryIdx) continue;   
             auto& preds = cfg.preds.at(i);
-            auto dom_new = dom[preds[0]];
+
+            std::set<int> dom_new;
+            if(preds.size()>0) dom_new = dom[preds[0]];
 
             // get union over preds
             for(int j = 1; j < preds.size(); j++){

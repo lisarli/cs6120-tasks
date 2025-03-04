@@ -135,49 +135,59 @@ std::vector<Block> insert_sets_gets_undefs(const Cfg& cfg, const PhiSets& phi_se
         auto& block = blocks[i];
 
         // insert gets
-        for(auto& [var_orig,var_get]: phi_gets.at(i)){
-            auto get_instr = json{
-                {"dest", var_get},
-                {"op", "get"},
-                {"type", var_to_type.at(var_orig)}
-            };
-            auto insert_pos = block.begin();
-            if(block.size()>0 && block[0].contains("label")){
-                insert_pos++;
+        // std::cout << "inserting gets" << std::endl;
+        if(phi_gets.contains(i)){
+            for(auto& [var_orig,var_get]: phi_gets.at(i)){
+                auto get_instr = json{
+                    {"dest", var_get},
+                    {"op", "get"},
+                    {"type", var_to_type.at(var_orig)}
+                };
+                auto insert_pos = block.begin();
+                if(block.size()>0 && block[0].contains("label")){
+                    insert_pos++;
+                }
+                block.insert(insert_pos,get_instr);
             }
-            block.insert(insert_pos,get_instr);
         }
 
         // insert undefs
-        for(auto& [var,type]: undefs.at(i)){
-            auto undef_instr = json{
-                {"dest", var},
-                {"op", "undef"},
-                {"type", type}
-            };
-            auto insert_pos = block.begin();
-            if(block.size()>0 && block[0].contains("label")){
-                insert_pos++;
+        // std::cout << "inserting undefs" << std::endl;
+        if(undefs.contains(i)){
+            for(auto& [var,type]: undefs.at(i)){
+                auto undef_instr = json{
+                    {"dest", var},
+                    {"op", "undef"},
+                    {"type", type}
+                };
+                auto insert_pos = block.begin();
+                if(block.size()>0 && block[0].contains("label")){
+                    insert_pos++;
+                }
+                block.insert(insert_pos,undef_instr);
             }
-            block.insert(insert_pos,undef_instr);
         }
 
         // insert sets
-        for(auto& tup: phi_sets.at(i)){
-            auto var_orig = std::get<0>(tup);
-            auto var_set = std::get<1>(tup);
-            auto phi_block = std::get<2>(tup);
-            auto set_dest = phi_gets.at(phi_block).at(var_orig);
-            auto set_instr = json{
-                {"op", "set"},
-                {"args", json::array({set_dest, var_set})}
-            };
-            // FIXME: don't put a set before a label
-            auto insert_pos = block.end();
-            if(block.size()>0 && is_jump(block[block.size()-1])){
-                insert_pos--;
+        // std::cout << "inserting sets" << std::endl;
+        if(phi_sets.contains(i)){
+            // std::cout << "inserting sets for block: " << i << std::endl;
+            for(auto& tup: phi_sets.at(i)){
+                auto var_orig = std::get<0>(tup);
+                auto var_set = std::get<1>(tup);
+                auto phi_block = std::get<2>(tup);
+                auto set_dest = phi_gets.at(phi_block).at(var_orig);
+                auto set_instr = json{
+                    {"op", "set"},
+                    {"args", json::array({set_dest, var_set})}
+                };
+                // FIXME: don't put a set before a label
+                auto insert_pos = block.end();
+                if(block.size()>0 && is_jump(block[block.size()-1])){
+                    insert_pos--;
+                }
+                block.insert(insert_pos, set_instr);
             }
-            block.insert(insert_pos, set_instr);
         }
     }
 
@@ -189,7 +199,9 @@ std::map<std::string,std::string> get_var_to_type(const json& func){
     std::map<std::string,std::string> var_to_type;
     for(const auto& instr: func["instrs"]){
         if(instr.contains("type")){
+            // std::cout << "here9: " << instr["dest"] << " " << instr["type"] << std::endl;
             var_to_type[instr["dest"]] = instr["type"];
+            // std::cout << "here10" << std::endl;
         }
     }
     return var_to_type;
@@ -197,12 +209,16 @@ std::map<std::string,std::string> get_var_to_type(const json& func){
 
 void to_ssa(json& func){
     // get utils
+    // std::cout << "getting utils" << std::endl;
     Cfg cfg = get_cfg_func(func);
     Dom dom = get_dom(func);
     DomTree tree = get_dom_tree(dom, cfg);
+    // std::cout << "done getting utils" << std::endl;
 
     // get map of blocks to variables for which they need phi-nodes
+    // std::cout << "getting phi vars" << std::endl;
     auto phi_vars = get_phi_vars(func, cfg, dom);
+    // std::cout << "done getting phi vars" << std::endl;
 
     // get sets and gets
     NameLog name_log;
@@ -214,8 +230,11 @@ void to_ssa(json& func){
     PhiGets phi_gets;
     PhiSets phi_sets;
     UndefInits undefs;
+    // std::cout << "here7" << std::endl;
     auto var_to_type = get_var_to_type(func);
+    // std::cout << "here8" << std::endl;
     rename(cfg.entryIdx, cfg, tree, phi_vars, name_log, name_count, phi_gets, phi_sets, undefs, var_to_type);
+    // std::cout << "done rename" << std::endl;
 
     /*
     std::cout << "--- SETS ---" << std::endl;
@@ -251,8 +270,10 @@ void to_ssa(json& func){
     */
 
     // insert sets and gets in blocks
+    // std::cout << "starting sets gets undefs" << std::endl;
     std::vector<Block> ssa_blocks = insert_sets_gets_undefs(cfg, phi_sets, phi_gets, undefs, var_to_type);
-
+    // std::cout << "done sets gets undefs" << std::endl;
+    
     // reorder blocks if we have an artificial entry block
     std::vector<int> block_order;
     for(int i = 0; i < ssa_blocks.size(); i++){
@@ -264,6 +285,7 @@ void to_ssa(json& func){
     }
 
     // rewrite func as SSA
+    // std::cout << "starting rewrite func" << std::endl;
     std::vector<json> new_func_body;
     for(int b_id: block_order){
         // std::cout << "inserting block: " << b_id << std::endl;

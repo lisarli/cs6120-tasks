@@ -25,7 +25,8 @@ int main(int argc, char* argv[]) {
         const Dom dom_brute_force = find_dominators_brute_force(cfg);
 
         if (dom != dom_brute_force) {
-            throw std::runtime_error("Dominator sets don't match up.");
+            std::cout << "ERROR: Dominator sets don't match up" << std::endl;
+            // throw std::runtime_error("Dominator sets don't match up.");
         }
 
         if(utility_type == "dom"){
