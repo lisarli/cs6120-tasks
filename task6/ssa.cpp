@@ -299,7 +299,57 @@ void to_ssa(json& func){
     func["instrs"] = new_func_body;
 }
 
+void from_ssa(json& func) {
+    Cfg cfg = get_cfg_func(func);
+    std::vector<Block> blocks = cfg.blocks;
+
+    // get all "get" instructions and their types in a map
+    std::map<std::string, std::string> gets;
+    for (Block block: blocks) {
+        for (auto instr: block) {
+            if (instr.contains("op") && instr["op"] == "get") {
+                gets[instr["dest"]] = instr["type"];
+            }
+        }
+    }
+
+    // replace all sets with new def using get map
+    // don't handle undefs
+    std::vector<json> new_func_body;
+    for (Block& block: blocks) {
+        Block new_block;
+        for (int i = 0; i < block.size(); i++) {
+            auto& instr = block[i];
+            // skip all "get"
+            if (instr.contains("op") && instr["op"] == "get") {
+                continue;
+            }
+            // if set, replace with id
+            if (instr.contains("op") && instr["op"] == "set") {
+                auto new_instr = json{
+                    {"op", "id"},
+                    {"dest", instr["args"][0]}, 
+                    {"op", gets[instr["args"][0]]}, 
+                    {"args", {instr["args"][1]}},
+                };
+                block[i] = new_instr;
+            }
+            new_block.push_back(instr);
+        }
+        new_func_body.insert(new_func_body.end(), new_block.begin(), new_block.end());
+    }
+
+    func["instrs"] = new_func_body;
+}
+
 int main(int argc, char* argv[]) {
+    // get utility type
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0] << "<to|from>" << std::endl;
+        return 1;
+    }
+    std::string utility_type = argv[1];
+
     // open bril json
     json j;
     try {
@@ -324,8 +374,14 @@ int main(int argc, char* argv[]) {
         //     std::cout << std::endl;
         // }
         // std::cout << std::endl;
-        
-        to_ssa(func);
+        if (utility_type == "to") {
+            to_ssa(func);
+        } else if (utility_type == "from") {
+            from_ssa(func);
+        } else {
+            std::cerr << "ERROR: Unknown utility type, got " << utility_type << std::endl;
+            return 1;
+        }
     }
 
     std::cout << j;
