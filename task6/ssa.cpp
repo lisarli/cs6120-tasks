@@ -199,9 +199,13 @@ std::map<std::string,std::string> get_var_to_type(const json& func){
     std::map<std::string,std::string> var_to_type;
     for(const auto& instr: func["instrs"]){
         if(instr.contains("type")){
-            // std::cout << "here9: " << instr["dest"] << " " << instr["type"] << std::endl;
-            var_to_type[instr["dest"]] = instr["type"];
-            // std::cout << "here10" << std::endl;
+            std::string type;
+            if(instr["type"].contains("ptr")){
+                type = "ptr<" + instr["type"]["ptr"].get<std::string>() + ">";
+            } else{
+                type = instr["type"];
+            }
+            var_to_type[instr["dest"]] = type;
         }
     }
     return var_to_type;
