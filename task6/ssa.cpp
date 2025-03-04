@@ -288,6 +288,7 @@ void from_ssa(json& func) {
     }
 
     // replace all sets with new def using get map
+    // don't handle undefs
     std::vector<json> new_func_body;
     for (Block& block: blocks) {
         Block new_block;
