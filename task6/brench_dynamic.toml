@@ -1,0 +1,41 @@
+extract = 'total_dyn_inst: (\d+)'
+benchmarks = '../bril/benchmarks/**/*.bril'
+
+[runs.baseline]
+pipeline = [
+    "bril2json",
+    "../task3/dce",
+    "../task3/lvn",
+    "../task3/dce",
+    "brili -p {args}",
+]
+
+[runs.ssa]
+pipeline = [
+    "bril2json",
+    "../task3/dce",
+    "../task3/lvn",
+    "../task3/dce",
+    "./ssa to",
+    "../task3/dce",
+    "../task3/lvn",
+    "../task3/dce",
+    "brili -p {args}",
+]
+
+[runs.roundtrip]
+pipeline = [
+    "bril2json",
+    "../task3/dce",
+    "../task3/lvn",
+    "../task3/dce",
+    "./ssa to",
+    "../task3/dce",
+    "../task3/lvn",
+    "../task3/dce",
+    "./ssa from",
+    "../task3/dce",
+    "../task3/lvn",
+    "../task3/dce",
+    "brili -p {args}",
+]
