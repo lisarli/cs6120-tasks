@@ -3,6 +3,7 @@
 #include <iostream>
 #include <set>
 #include <string>
+#include <stack>
 #include <map>
 
 #include "../task5/dom_utils.hpp"
