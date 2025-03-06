@@ -8,6 +8,7 @@ pipeline = [
     "../task3/lvn",
     "../task3/dce",
     "bril2txt",
+    "grep -v \"^@\\|^\\x7D$\"",
     "wc -l 1>&2",
 ]
 
@@ -22,6 +23,7 @@ pipeline = [
     "../task3/lvn",
     "../task3/dce",
     "bril2txt",
+    "grep -v \"^@\\|^\\x7D$\"",
     "wc -l 1>&2",
 ]
 
@@ -40,5 +42,6 @@ pipeline = [
     "../task3/lvn",
     "../task3/dce",
     "bril2txt",
+    "grep -v \"^@\\|^\\x7D$\"",
     "wc -l 1>&2",
 ]

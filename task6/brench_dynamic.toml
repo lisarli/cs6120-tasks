@@ -1,5 +1,6 @@
 extract = 'total_dyn_inst: (\d+)'
 benchmarks = '../bril/benchmarks/**/*.bril'
+timeout = 20
 
 [runs.baseline]
 pipeline = [
@@ -17,9 +18,6 @@ pipeline = [
     "../task3/lvn",
     "../task3/dce",
     "./ssa to",
-    "../task3/dce",
-    "../task3/lvn",
-    "../task3/dce",
     "brili -p {args}",
 ]
 
@@ -30,9 +28,6 @@ pipeline = [
     "../task3/lvn",
     "../task3/dce",
     "./ssa to",
-    "../task3/dce",
-    "../task3/lvn",
-    "../task3/dce",
     "./ssa from",
     "../task3/dce",
     "../task3/lvn",
