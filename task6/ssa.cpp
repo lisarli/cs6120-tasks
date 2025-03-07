@@ -58,7 +58,6 @@ using PhiSets =  std::map<int,std::vector<std::tuple<std::string,std::string,int
 using UndefInits = std::map<int,std::vector<std::pair<std::string,std::string>>>; // map of block id to list of (var name, type) which need to be assigned undef at start of block
 
 void rename(int block_id, Cfg& cfg, const DomTree& tree, const PhiVars& phi_vars, NameLog& name_log, NameCount& name_count, PhiGets& phi_gets, PhiSets& phi_sets, UndefInits& undefs, const std::map<std::string,std::string>& var_to_type){    
-    // std::cout << "in rename for block: " << block_id << std::endl;
     // initialize undefs and phi gets and sets as empty
     phi_gets[block_id];
     phi_sets[block_id];
@@ -98,7 +97,6 @@ void rename(int block_id, Cfg& cfg, const DomTree& tree, const PhiVars& phi_vars
     }
 
     // write to successor's phi-nodes by assigning sets in current node
-    // std::cout << "starting assign sets" << std::endl;
     for(auto s: cfg.succs.at(block_id)){
         for(auto p: phi_vars.at(s)){
             if(name_log[p].empty()){
@@ -136,7 +134,6 @@ std::vector<Block> insert_sets_gets_undefs(const Cfg& cfg, const PhiSets& phi_se
         auto& block = blocks[i];
 
         // insert gets
-        // std::cout << "inserting gets" << std::endl;
         if(phi_gets.contains(i)){
             for(auto& [var_orig,var_get]: phi_gets.at(i)){
                 auto get_instr = json{
@@ -153,7 +150,6 @@ std::vector<Block> insert_sets_gets_undefs(const Cfg& cfg, const PhiSets& phi_se
         }
 
         // insert undefs
-        // std::cout << "inserting undefs" << std::endl;
         if(undefs.contains(i)){
             for(auto& [var,type]: undefs.at(i)){
                 auto undef_instr = json{
@@ -170,19 +166,17 @@ std::vector<Block> insert_sets_gets_undefs(const Cfg& cfg, const PhiSets& phi_se
         }
 
         // insert sets
-        // std::cout << "inserting sets" << std::endl;
         if(phi_sets.contains(i)){
-            // std::cout << "inserting sets for block: " << i << std::endl;
             for(auto& tup: phi_sets.at(i)){
                 auto var_orig = std::get<0>(tup);
                 auto var_set = std::get<1>(tup);
                 auto phi_block = std::get<2>(tup);
+                auto temp = phi_gets.at(phi_block);
                 auto set_dest = phi_gets.at(phi_block).at(var_orig);
                 auto set_instr = json{
                     {"op", "set"},
                     {"args", json::array({set_dest, var_set})}
                 };
-                // FIXME: don't put a set before a label
                 auto insert_pos = block.end();
                 if(block.size()>0 && is_jump(block[block.size()-1])){
                     insert_pos--;
@@ -214,16 +208,12 @@ std::map<std::string,std::string> get_var_to_type(const json& func){
 
 void to_ssa(json& func){
     // get utils
-    // std::cout << "getting utils" << std::endl;
     Cfg cfg = get_cfg_func(func);
     Dom dom = get_dom(func);
     DomTree tree = get_dom_tree(dom, cfg);
-    // std::cout << "done getting utils" << std::endl;
 
     // get map of blocks to variables for which they need phi-nodes
-    // std::cout << "getting phi vars" << std::endl;
     auto phi_vars = get_phi_vars(func, cfg, dom);
-    // std::cout << "done getting phi vars" << std::endl;
 
     // get sets and gets
     NameLog name_log;
@@ -235,49 +225,11 @@ void to_ssa(json& func){
     PhiGets phi_gets;
     PhiSets phi_sets;
     UndefInits undefs;
-    // std::cout << "here7" << std::endl;
     auto var_to_type = get_var_to_type(func);
-    // std::cout << "here8" << std::endl;
     rename(cfg.entryIdx, cfg, tree, phi_vars, name_log, name_count, phi_gets, phi_sets, undefs, var_to_type);
-    // std::cout << "done rename" << std::endl;
-
-    /*
-    std::cout << "--- SETS ---" << std::endl;
-    for(auto& [block_id, sets]: phi_sets){
-        std::cout << "sets for block " << block_id << ": " << std::endl;
-        for(auto& p: sets){
-            auto var_orig = std::get<0>(p);
-            auto var_set = std::get<1>(p);
-            auto phi_block = std::get<2>(p);
-            auto set_dest = phi_gets[phi_block][var_orig];
-            std::cout << "\t(" << set_dest << ", " << var_set << ")" << std::endl;
-        }
-        std::cout << std::endl;
-    }
-
-    std::cout << "--- GETS ---" << std::endl;
-    for(auto& [block_id, gets]: phi_gets){
-        std::cout << "gets for block " << block_id << ": " << std::endl;
-        for(auto& [var, rename]: gets){
-            std::cout << "\t(" << var << ", " << rename << ")" << std::endl;
-        }
-        std::cout << std::endl;
-    }
-
-    std::cout << "--- UNDEFS ---" << std::endl;
-    for(auto& [block_id, undefs]: undefs){
-        std::cout << "undefs for block " << block_id << ": " << std::endl;
-        for(auto& [var, type]: undefs){
-            std::cout << "\t(" << var << ", " << type << ")" << std::endl;
-        }
-        std::cout << std::endl;
-    }
-    */
 
     // insert sets and gets in blocks
-    // std::cout << "starting sets gets undefs" << std::endl;
     std::vector<Block> ssa_blocks = insert_sets_gets_undefs(cfg, phi_sets, phi_gets, undefs, var_to_type);
-    // std::cout << "done sets gets undefs" << std::endl;
     
     // reorder blocks if we have an artificial entry block
     std::vector<int> block_order;
@@ -290,10 +242,8 @@ void to_ssa(json& func){
     }
 
     // rewrite func as SSA
-    // std::cout << "starting rewrite func" << std::endl;
     std::vector<json> new_func_body;
     for(int b_id: block_order){
-        // std::cout << "inserting block: " << b_id << std::endl;
         auto& b = ssa_blocks[b_id];
         new_func_body.insert(new_func_body.end(), b.begin(), b.end());
     }
@@ -362,19 +312,6 @@ int main(int argc, char* argv[]) {
     
     // do analysis
     for(auto& func: j["functions"]){
-        // std::cout << "--- PROCESSING FUNC " << func["name"] << " ---" << std::endl;
-        // get and print phi-nodes
-        // Cfg cfg = get_cfg_func(func);
-        // Dom dom = get_dom(func);
-        // auto phi_vars = get_phi_vars(func,cfg,dom);
-        // for(auto& [b, vars]: phi_vars){
-        //     std::cout << "block " << b << " has phi nodes for vars: ";
-        //     for(auto var: vars){
-        //         std::cout << var << " ";
-        //     }
-        //     std::cout << std::endl;
-        // }
-        // std::cout << std::endl;
         if (utility_type == "to") {
             to_ssa(func);
         } else if (utility_type == "from") {

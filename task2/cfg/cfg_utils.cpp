@@ -9,10 +9,9 @@ std::vector<Block> get_blocks(const json& func){
     for(const auto& instr: func["instrs"]){
         bool is_label = instr.contains("label");
         bool is_term = !is_label && terms.count(instr["op"]);
-        bool is_ret = !is_label && instr["op"]=="ret";
 
         if(got_ret && !is_label) continue;
-        if(is_ret) got_ret = true;
+        if(is_term) got_ret = true;
 
         if(!is_label){
             cur_block.push_back(instr);
