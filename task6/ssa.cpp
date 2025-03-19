@@ -231,19 +231,9 @@ void to_ssa(json& func){
     // insert sets and gets in blocks
     std::vector<Block> ssa_blocks = insert_sets_gets_undefs(cfg, phi_sets, phi_gets, undefs, var_to_type);
     
-    // reorder blocks if we have an artificial entry block
-    std::vector<int> block_order;
-    for(int i = 0; i < ssa_blocks.size(); i++){
-        block_order.push_back(i);
-    }
-    if(cfg.entryIdx != 0){
-        block_order.insert(block_order.begin(), ssa_blocks.size()-1);
-        block_order.pop_back();
-    }
-
     // rewrite func as SSA
     std::vector<json> new_func_body;
-    for(int b_id: block_order){
+    for(int b_id: cfg.block_order){
         auto& b = ssa_blocks[b_id];
         new_func_body.insert(new_func_body.end(), b.begin(), b.end());
     }

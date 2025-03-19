@@ -91,6 +91,16 @@ Cfg get_cfg(std::vector<Block> bb){
         cfg.preds[i];
     }
 
+    // construct block order
+    auto& block_order = cfg.block_order;
+    for(int i = 0; i < cfg.blocks.size(); i++){
+        block_order.push_back(i);
+    }
+    if(cfg.entryIdx != 0){
+        block_order.insert(block_order.begin(), cfg.blocks.size()-1);
+        block_order.pop_back();
+    }
+
     return cfg;
 }
 
