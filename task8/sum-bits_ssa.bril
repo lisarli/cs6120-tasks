@@ -1,0 +1,37 @@
+@main(input: int) {
+  cond.0.init: bool = undef;
+  bit.0.init: int = undef;
+  sum.0: int = const 0;
+  two.0: int = const 2;
+  zero.0: int = const 0;
+  set bit.0 bit.0.init;
+  set cond.0 cond.0.init;
+  set input.0 input;
+  set sum.1 sum.0;
+.loop:
+  sum.1: int = get;
+  input.0: int = get;
+  cond.0: bool = get;
+  bit.0: int = get;
+  cond.1: bool = eq input.0 zero.0;
+  br cond.1 .done .body;
+.body:
+  bit.1: int = call @mod input.0 two.0;
+  input.1: int = div input.0 two.0;
+  sum.2: int = add sum.1 bit.1;
+  set bit.0 bit.1;
+  set cond.0 cond.1;
+  set input.0 input.1;
+  set sum.1 sum.2;
+  jmp .loop;
+.done:
+  print sum.1;
+  ret;
+}
+@mod(dividend: int, divisor: int): int {
+  quotient.0: int = div dividend divisor;
+  two.0: int = const 2;
+  prod.0: int = mul two.0 quotient.0;
+  diff.0: int = sub dividend prod.0;
+  ret diff.0;
+}

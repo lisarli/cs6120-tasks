@@ -1,0 +1,33 @@
+@main(a: int) {
+  zero.0.init: int = undef;
+  temp.0.init: int = undef;
+  one.0.init: int = undef;
+  is_term.0.init: bool = undef;
+  two.0: int = const 2;
+  set a.0 a;
+  set is_term.0 is_term.0.init;
+  set one.0 one.0.init;
+  set temp.0 temp.0.init;
+  set zero.0 zero.0.init;
+.while.cond:
+  zero.0: int = get;
+  temp.0: int = get;
+  one.0: int = get;
+  is_term.0: bool = get;
+  a.0: int = get;
+  zero.1: int = const 0;
+  is_term.1: bool = eq a.0 zero.1;
+  br is_term.1 .while.finish .while.body;
+.while.body:
+  temp.1: int = id two.0;
+  one.1: int = const 1;
+  a.1: int = sub a.0 one.1;
+  set a.0 a.1;
+  set is_term.0 is_term.1;
+  set one.0 one.1;
+  set temp.0 temp.1;
+  set zero.0 zero.1;
+  jmp .while.cond;
+.while.finish:
+  print a.0;
+}
