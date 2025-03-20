@@ -11,8 +11,8 @@ using json = nlohmann::json;
 using Block = std::vector<json>;
 
 struct Cfg {
-    std::unordered_map<int,std::vector<int>> preds;
-    std::unordered_map<int,std::vector<int>> succs;
+    std::unordered_map<int,std::set<int>> preds;
+    std::unordered_map<int,std::set<int>> succs;
     std::vector<Block> blocks;
     std::vector<int> block_order;
     int entryIdx;

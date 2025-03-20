@@ -62,21 +62,21 @@ Cfg get_cfg(std::vector<Block> bb){
 
         auto& block = bb[i];
         auto& last = block[block.size()-1];
-        std::vector<int> succ;
+        std::set<int> succ;
         
         if(last["op"] == "jmp"){
-            succ.push_back(labels_to_id[last["labels"][0]]);
+            succ.insert(labels_to_id[last["labels"][0]]);
         } else if(last["op"] == "br"){
-            succ.push_back(labels_to_id[last["labels"][0]]);
-            succ.push_back(labels_to_id[last["labels"][1]]);
+            succ.insert(labels_to_id[last["labels"][0]]);
+            succ.insert(labels_to_id[last["labels"][1]]);
         } else if(last["op"] != "ret" && i != bb.size()-1){
-            succ.push_back(i+1);
+            succ.insert(i+1);
         }
 
         cfg.succs[i] = succ;
 
         for(int node: succ){
-            cfg.preds[node].push_back(i);
+            cfg.preds[node].insert(i);
         }
     }
 
@@ -85,8 +85,8 @@ Cfg get_cfg(std::vector<Block> bb){
     if(!cfg.preds[0].empty()){
         Block emptyBlock;
         cfg.blocks.push_back(emptyBlock);
-        cfg.succs[i].push_back(0);
-        cfg.preds[0].push_back(i);
+        cfg.succs[i].insert(0);
+        cfg.preds[0].insert(i);
         cfg.entryIdx = i;
         cfg.preds[i];
     }

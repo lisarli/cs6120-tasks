@@ -54,11 +54,13 @@ Dom get_dom(const json& func){
             auto& preds = cfg.preds.at(i);
 
             std::set<int> dom_new;
-            if(preds.size()>0) dom_new = dom[preds[0]];
+            auto it = preds.begin();
+            if(preds.size()>0) dom_new = dom[*it];
+            it++;
 
             // get union over preds
-            for(int j = 1; j < preds.size(); j++){
-                int p = preds[j];
+            for(; it != preds.end(); it++){
+                int p = *it;
                 std::set<int> temp;
                 std::set_intersection(dom_new.begin(), dom_new.end(),
                                       dom[p].begin(), dom[p].end(),
