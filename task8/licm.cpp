@@ -8,7 +8,6 @@
 
 #include "../task5/dom_utils.hpp"
 
-// FIXME: need to actually update labels for jumps to loops (go to preheader)
 
 // get headers and their backedges in CFG
 auto get_headers(const Cfg& cfg, const Dom& dom){
@@ -36,6 +35,13 @@ auto insert_preheaders(Cfg& cfg, const std::map<int,std::set<int>>& headers){
     auto& b_order = cfg.block_order;
 
     for(auto& [h, backsrc]: headers){
+        // create new block and label
+        h_to_ph[h] = cur_block_id;
+        Block empty_block;
+        auto old_label = cfg.blocks[h][0]["label"].get<std::string>();
+        auto new_label = old_label + "_ph";
+        auto new_label_instr = json{ {"label", new_label} };
+
         // update succs for other blocks
         for(int i = 0; i < cfg.blocks.size(); i++){
             if(backsrc.contains(i)) continue;
@@ -43,12 +49,22 @@ auto insert_preheaders(Cfg& cfg, const std::map<int,std::set<int>>& headers){
             if(cur_succs.contains(h)){
                 cur_succs.erase(cur_succs.find(h));
                 cur_succs.insert(cur_block_id);
+
+                // update jmp and br targets
+                auto& succ_block = cfg.blocks[i];
+                auto& last_instr = succ_block[succ_block.size()-1];
+                if(last_instr.contains("labels")){
+                    for(int j = 0; j < last_instr["labels"].size(); j++){
+                        if(last_instr["labels"][j] == old_label){
+                            last_instr["labels"][j] = new_label;
+                        }
+                    }
+                }
             }
         }
         
         // create preheader block
-        h_to_ph[h] = cur_block_id;
-        Block empty_block;
+        empty_block.push_back(new_label_instr);
         cfg.blocks.push_back(empty_block);
         b_order.insert(std::find(b_order.begin(),b_order.end(),h), cur_block_id);
 
@@ -120,17 +136,19 @@ auto get_loop_inv_instrs(std::set<int> body, const Cfg& cfg){
         for(int b: body){
             for(int i = 0; i < blocks.at(b).size(); i++){
                 auto& instr = blocks.at(b).at(i);
-                if(instr.contains("args") && instr.contains("op") && !side_effect_ops.contains(instr["op"])){
+                if(instr.contains("dest") && instr.contains("op") && !side_effect_ops.contains(instr["op"])){
                     bool inv = true;
 
                     // check if instr is loop-invariant
-                    for(auto arg: instr["args"]){
-                        bool cur_inv = !defs_in_body.contains(arg);
-                        if(!inv){
-                            auto [b_p,i_p] = defs_in_body[arg];
-                            cur_inv = mp.contains(b_p) && mp[b_p].contains(i_p);
+                    if(instr.contains("args")){
+                        for(auto arg: instr["args"]){
+                            bool cur_inv = !defs_in_body.contains(arg);
+                            if(!inv){
+                                auto [b_p,i_p] = defs_in_body[arg];
+                                cur_inv = mp.contains(b_p) && mp[b_p].contains(i_p);
+                            }
+                            inv &= cur_inv;
                         }
-                        inv &= cur_inv;
                     }
 
                     // mark as loop-invariant
@@ -154,7 +172,6 @@ void move_instrs(std::vector<std::pair<int,int>> inv_instrs, int ph, Cfg& cfg){
     auto& blocks = cfg.blocks;
     std::map<int,std::set<int>> mp;
     for(auto& [b, idx]: inv_instrs){
-        // TODO: actually check whether safe to move to preheader
         mp[b].insert(idx);
 
         // insert into preheader

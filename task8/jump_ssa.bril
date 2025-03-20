@@ -1,0 +1,55 @@
+@main(a: int) {
+  c.0.init: int = undef;
+  zero.0: int = const 0;
+  one.0: int = const 1;
+  two.0: int = const 2;
+  cond.0: bool = eq a zero.0;
+  set a.0 a;
+  set c.0 c.0.init;
+  set cond.1 cond.0;
+  set a.2 a;
+  set c.2 c.0.init;
+  set cond.3 cond.0;
+  br cond.0 .if .else;
+.if:
+  cond.1: bool = get;
+  c.0: int = get;
+  a.0: int = get;
+  cond.2: bool = eq a.0 two.0;
+  set a.4 a.0;
+  set c.4 c.0;
+  set cond.5 cond.2;
+  br cond.2 .end .if_body;
+.if_body:
+  c.1: int = const 3;
+.if_body_more:
+  print a.0;
+  a.1: int = add a.0 one.0;
+  set a.0 a.1;
+  set c.0 c.1;
+  set cond.1 cond.2;
+  jmp .if;
+.else:
+  cond.3: bool = get;
+  c.2: int = get;
+  a.2: int = get;
+  cond.4: bool = eq a.2 zero.0;
+  set a.4 a.2;
+  set c.4 c.2;
+  set cond.5 cond.4;
+  br cond.4 .end .else_body;
+.else_body:
+  c.3: int = const 4;
+.else_body_more:
+  print a.2;
+  a.3: int = sub a.2 one.0;
+  set a.2 a.3;
+  set c.2 c.3;
+  set cond.3 cond.4;
+  jmp .else;
+.end:
+  cond.5: bool = get;
+  c.4: int = get;
+  a.4: int = get;
+  print c.4;
+}
