@@ -26,7 +26,7 @@ auto get_headers(const Cfg& cfg, const Dom& dom){
 }
 
 // insert loop preheaders
-auto insert_preheaders(Cfg& cfg, const std::map<int,std::set<int>> & headers){
+auto insert_preheaders(Cfg& cfg, const std::map<int,std::set<int>>& headers){
     // insert preheaders
     std::map<int,int> h_to_ph;
 
@@ -47,6 +47,7 @@ auto insert_preheaders(Cfg& cfg, const std::map<int,std::set<int>> & headers){
         }
         
         // create preheader block
+        h_to_ph[h] = cur_block_id;
         Block empty_block;
         cfg.blocks.push_back(empty_block);
         b_order.insert(std::find(b_order.begin(),b_order.end(),h), cur_block_id);
@@ -101,6 +102,8 @@ auto get_defs_in_body(std::set<int> body, const Cfg& cfg){
     return defs;
 }
 
+const std::set<std::string> side_effect_ops = {"set","get","br","div","print","call","store","load"};
+
 // get map of blocks to loop-invariant insns
 auto get_loop_inv_instrs(std::set<int> body, const Cfg& cfg){
     std::map<int,std::set<int>> mp;
@@ -117,8 +120,7 @@ auto get_loop_inv_instrs(std::set<int> body, const Cfg& cfg){
         for(int b: body){
             for(int i = 0; i < blocks.at(b).size(); i++){
                 auto& instr = blocks.at(b).at(i);
-                // FIXME: conservatively not marking get/set, should probably change this to any unknown op (no side effects like print)
-                if(instr.contains("args") && instr.contains("op") && instr["op"] != "set" && instr["op"] != "br" && instr["op"] != "get"){
+                if(instr.contains("args") && instr.contains("op") && !side_effect_ops.contains(instr["op"])){
                     bool inv = true;
 
                     // check if instr is loop-invariant
@@ -216,8 +218,6 @@ int main(int argc, char* argv[]) {
         std::cerr << "ERROR: Failed to parse JSON from stdin, " << e.what() << std::endl;
         return 1;
     }
-
-    // TODO: check in SSA form
     
     // do analysis
     for(auto& func: j["functions"]){

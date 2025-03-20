@@ -1,0 +1,69 @@
+@main(n: int) {
+  sum.0.init: int = undef;
+  found.0.init: bool = undef;
+  done.0.init: bool = undef;
+  b_sq.0.init: int = undef;
+  b.0.init: int = undef;
+  a_sq.0.init: int = undef;
+  one.0: int = const 1;
+  n_sq.0: int = mul n n;
+  a.0: int = id one.0;
+  set a.1 a.0;
+  set a_sq.0 a_sq.0.init;
+  set b.0 b.0.init;
+  set b_sq.0 b_sq.0.init;
+  set done.0 done.0.init;
+  set found.0 found.0.init;
+  set sum.0 sum.0.init;
+.outer_loop:
+  sum.0: int = get;
+  found.0: bool = get;
+  done.0: bool = get;
+  b_sq.0: int = get;
+  b.0: int = get;
+  a_sq.0: int = get;
+  a.1: int = get;
+  b.1: int = id one.0;
+  set a_sq.1 a_sq.0;
+  set b.2 b.1;
+  set b_sq.1 b_sq.0;
+  set done.1 done.0;
+  set found.1 found.0;
+  set sum.1 sum.0;
+.inner_loop:
+  sum.1: int = get;
+  found.1: bool = get;
+  done.1: bool = get;
+  b_sq.1: int = get;
+  b.2: int = get;
+  a_sq.1: int = get;
+  a_sq.2: int = mul a.1 a.1;
+  b_sq.2: int = mul b.2 b.2;
+  sum.2: int = add a_sq.2 b_sq.2;
+  found.2: bool = eq sum.2 n_sq.0;
+  br found.2 .found .inner_continue;
+.found:
+  print b.2 a.1;
+.inner_continue:
+  b.3: int = add b.2 one.0;
+  done.2: bool = ge b.3 a.1;
+  set a_sq.1 a_sq.2;
+  set b.2 b.3;
+  set b_sq.1 b_sq.2;
+  set done.1 done.2;
+  set found.1 found.2;
+  set sum.1 sum.2;
+  br done.2 .outer_continue .inner_loop;
+.outer_continue:
+  a.2: int = add a.1 one.0;
+  done.3: bool = ge a.2 n;
+  set a.1 a.2;
+  set a_sq.0 a_sq.2;
+  set b.0 b.3;
+  set b_sq.0 b_sq.2;
+  set done.0 done.3;
+  set found.0 found.2;
+  set sum.0 sum.2;
+  br done.3 .finish .outer_loop;
+.finish:
+}
