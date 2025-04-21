@@ -1,13 +1,4 @@
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <set>
-#include <unordered_map>
-#include <queue>
-#include <nlohmann/json.hpp>
-
-#include "../task2/cfg/cfg_utils.hpp"
-
+#include "dataflow.hpp"
 
 // get names of variables written to in block [b]
 std::set<std::string> get_defs(const Block& b){
@@ -21,7 +12,7 @@ std::set<std::string> get_defs(const Block& b){
 }
 
 template<typename T, typename M, typename R, typename D>
-void df_worklist(const json& func, bool is_forward, T init, M merge, R transfer, D display){
+std::pair<std::unordered_map<int, T>, std::unordered_map<int, T>>  df_worklist(const json& func, bool is_forward, T init, M merge, R transfer, bool is_display, D display){
     // get CFG
     Cfg cfg = get_cfg_func(func);
     std::vector<Block>& blocks = cfg.blocks;
@@ -68,7 +59,10 @@ void df_worklist(const json& func, bool is_forward, T init, M merge, R transfer,
     }
     
     // display analysis
-    display(blocks, in, out);
+    if (is_display) {
+        display(blocks, in, out);
+    }
+    return {out, in};
 }
 
 using bril_value = std::variant<int, float, bool, char>;
@@ -196,7 +190,7 @@ void df_const_propagation(const json& func) {
         }
     };
 
-    df_worklist(func, true, init, merge, transfer, display);
+    df_worklist(func, true, init, merge, transfer, true, display);
 }
 
 // defined vars df analysis
@@ -257,7 +251,7 @@ void df_defined_vars(const json& func){
         }
     };
 
-    df_worklist(func, true, init, merge, transfer, display);
+    df_worklist(func, true, init, merge, transfer, true, display);
 }
 
 // reaching defs df analysis
@@ -319,11 +313,12 @@ void df_reaching_defs(const json& func){
         }
     };
 
-    df_worklist(func, true, init, merge, transfer, display);
+    df_worklist(func, true, init, merge, transfer, true, display);
 }
 
 // live vars df analysis
-void df_live_vars(const json& func){
+std::pair<std::unordered_map<int, std::set<std::string>>, std::unordered_map<int, std::set<std::string>>> 
+ df_live_vars(const json& func){
     // create init
     std::set<std::string> init;
 
@@ -393,7 +388,7 @@ void df_live_vars(const json& func){
         }
     };
 
-    df_worklist(func, false, init, merge, transfer, display);
+    return df_worklist(func, false, init, merge, transfer, false, display);
 }
 
 int main(int argc, char* argv[]) {
