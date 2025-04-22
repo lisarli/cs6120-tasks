@@ -56,12 +56,7 @@ Block assign_registers(Block& block, const std::unordered_map<std::string, int>&
     return new_block;
 }
 
-std::unordered_map<std::string, int> linear_scan_block(std::vector<std::set<std::string>> live_vars, int num_registers) {
-    std::vector<int> free_registers;
-    for (int i = num_registers; i > 0; i--) {
-        free_registers.push_back(i);
-    }
-
+std::unordered_map<std::string, int> linear_scan_block(std::vector<std::set<std::string>> live_vars, int num_registers, std::vector<int>& free_registers, std::unordered_map<std::string, int>& var_to_reg) {
     auto intervals = std::unordered_map<std::string, std::pair<int, int>>(); // map of var to (start, end)
     for (int i = 0; i < live_vars.size(); i++) {
         for (const auto& var : live_vars[i]) {
@@ -91,7 +86,6 @@ std::unordered_map<std::string, int> linear_scan_block(std::vector<std::set<std:
         return a.second.second > b.second.second;
     };
     std::priority_queue<std::pair<std::string, std::pair<int, int>>, std::vector<std::pair<std::string, std::pair<int, int>>>, decltype(cmp)> expiring_intervals(cmp);
-    std::unordered_map<std::string, int> var_to_reg; 
     int spilled_vars = 0;
 
     for (const auto& interval : sorted_intervals) {
@@ -103,6 +97,7 @@ std::unordered_map<std::string, int> linear_scan_block(std::vector<std::set<std:
         while (!expiring_intervals.empty() && expiring_intervals.top().second.second < start) {
             active_intervals.erase(expiring_intervals.top().first);
             free_registers.push_back(var_to_reg[expiring_intervals.top().first]);
+            var_to_reg.erase(expiring_intervals.top().first);
             expiring_intervals.pop();
         }
 
@@ -122,6 +117,9 @@ std::unordered_map<std::string, int> linear_scan_block(std::vector<std::set<std:
             }
             
         } else {
+            if (var_to_reg.find(var) != var_to_reg.end()) {
+                continue;
+            }
             int reg = free_registers.back();
             free_registers.pop_back();
             var_to_reg[var] = reg;
@@ -138,12 +136,20 @@ void linear_scan(json& func, int num_registers) {
     std::vector<Block> blocks = cfg.blocks;
     auto live_vars = df_live_vars(func, false).first; // get all outs of blocks for live var
 
+    std::unordered_map<std::string, int> var_to_reg; 
+    std::vector<int> free_registers;
+    for (int i = num_registers; i > 0; i--) {
+        free_registers.push_back(i);
+    }
+
     std::vector<json> new_func_body;
     for (int i = 0; i < blocks.size(); i++) {
         auto& block = blocks[i];
         auto& block_live_vars = live_vars[i];
 
         auto live_vars_per_instr = per_block_live_vars(block, block_live_vars);
+        var_to_reg = linear_scan_block(live_vars_per_instr, num_registers, free_registers, var_to_reg);
+
         // for (int j = 0; j < live_vars_per_instr.size(); j++) {
         //     std::cout << std::endl;
         //     if (live_vars_per_instr[j].empty()) {
@@ -156,16 +162,32 @@ void linear_scan(json& func, int num_registers) {
         //         std::cout << std::endl;
         //     }
         // }
-        auto var_to_reg = linear_scan_block(live_vars_per_instr, num_registers);
 
-        // print var to reg
+        // // print var to reg
         // std::cout << "var to reg: " << std::endl;
         // for (const auto& var : var_to_reg) {
         //     std::cout << var.first << ": " << var.second << std::endl;
         // }
+        // // print free_registers
+        // std::cout << "free registers: ";
+        // for (const auto& reg : free_registers) {
+        //     std::cout << reg << " ";
+        // }
+        // std::cout << std::endl;
 
         Block register_assigned_block = assign_registers(block, var_to_reg);
         new_func_body.insert(new_func_body.end(), register_assigned_block.begin(), register_assigned_block.end());
+
+        for (auto& arg : func["args"]) {
+            const auto& arg_name = arg["name"].get<std::string>();
+            if (var_to_reg.find(arg_name) != var_to_reg.end()) {
+                if (var_to_reg[arg_name] < 0) {
+                    arg["name"] = "m" + std::to_string(-1 * var_to_reg[arg_name]);
+                } else {
+                    arg["name"] = "r" + std::to_string(var_to_reg[arg_name]);
+                }
+            }
+        }
     }
 
     func["instrs"] = new_func_body;
