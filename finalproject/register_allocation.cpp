@@ -26,7 +26,11 @@ std::vector<std::set<std::string>> per_block_live_vars(const Block& block, std::
     return live_vars_per_instr;
 }
 
-void linear_scan(std::vector<std::set<std::string>> live_vars, std::vector<int>& free_registers) {
+std::pair<std::unordered_map<std::string, int>, int> linear_scan(std::vector<std::set<std::string>> live_vars, int num_registers) {
+    std::vector<int> free_registers;
+    for (int i = num_registers; i > 0; i--) {
+        free_registers.push_back(i);
+    }
 
     auto intervals = std::unordered_map<std::string, std::pair<int, int>>(); // map of var to (start, end)
     for (int i = 0; i < live_vars.size(); i++) {
@@ -39,11 +43,10 @@ void linear_scan(std::vector<std::set<std::string>> live_vars, std::vector<int>&
         }
     }
 
-    std::cout << "intervals: " << std::endl;
-    for (const auto& interval : intervals) {
-        std::cout << interval.first << ": " << interval.second.first << " " << interval.second.second << std::endl;
-    }
-    return;
+    // std::cout << "intervals: " << std::endl;
+    // for (const auto& interval : intervals) {
+    //     std::cout << interval.first << ": " << interval.second.first << " " << interval.second.second << std::endl;
+    // }
 
     // sort intervals by start time
     std::vector<std::pair<std::string, std::pair<int, int>>> sorted_intervals(intervals.begin(), intervals.end());
@@ -59,8 +62,8 @@ void linear_scan(std::vector<std::set<std::string>> live_vars, std::vector<int>&
     };
     std::priority_queue<std::pair<std::string, std::pair<int, int>>, std::vector<std::pair<std::string, std::pair<int, int>>>, decltype(cmp)> expiring_intervals(cmp);
     std::unordered_map<std::string, int> var_to_reg; 
+    int spilled_vars = 0;
     
-
     for (const auto& interval : sorted_intervals) {
         const auto& var = interval.first;
         const auto& start = interval.second.first;
@@ -73,18 +76,19 @@ void linear_scan(std::vector<std::set<std::string>> live_vars, std::vector<int>&
             expiring_intervals.pop();
         }
 
-        if (active_intervals.size() == free_registers.size()) {
+        if (active_intervals.size() == num_registers) {
             const auto& spill = expiring_intervals.top();
             if (spill.second.second > end) {
                 var_to_reg[var] = var_to_reg[spill.first];
-                // new stack location for spill.first
+                var_to_reg[spill.first] = -1; // mark as spilled
+                spilled_vars++;
                 active_intervals.erase(spill.first);
                 expiring_intervals.pop();
                 active_intervals.insert(var);
                 expiring_intervals.push(interval);
             } else {
-                // spill
-                std::cout << "spill" << std::endl;
+                var_to_reg[var] = -1;
+                spilled_vars++;
             }
             
         } else {
@@ -95,9 +99,11 @@ void linear_scan(std::vector<std::set<std::string>> live_vars, std::vector<int>&
             expiring_intervals.push(interval);
         }
     }
+
+    return make_pair(var_to_reg, spilled_vars);
 }
 
-void alloc_register_linear_scan(json& func, std::vector<int>& free_registers) {
+void alloc_register_linear_scan(json& func, int num_registers) {
     Cfg cfg = get_cfg_func(func);
     std::vector<Block> blocks = cfg.blocks;
     auto live_vars = df_live_vars(func, false).first; // get all outs of blocks for live var
@@ -119,7 +125,16 @@ void alloc_register_linear_scan(json& func, std::vector<int>& free_registers) {
         //         std::cout << std::endl;
         //     }
         // }
-        linear_scan(live_vars_per_instr, free_registers);
+        auto ls = linear_scan(live_vars_per_instr, num_registers);
+        auto& var_to_reg = ls.first;
+        auto& spilled_vars = ls.second;
+
+        // print var to reg
+        std::cout << "var to reg: " << std::endl;
+        for (const auto& var : var_to_reg) {
+            std::cout << var.first << ": " << var.second << std::endl;
+        }
+        std::cout << "spilled vars: " << spilled_vars << std::endl;
     }
 }
 
@@ -139,11 +154,6 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    std::vector<int> free_registers;
-    for (int i = 0; i < num_registers; i++) {
-        free_registers.push_back(i);
-    }
-
     json j;
     try {
         std::cin >> j;
@@ -154,7 +164,7 @@ int main(int argc, char* argv[]) {
     
     for(auto& func: j["functions"]){
         if (utility_type == "linear") {
-            alloc_register_linear_scan(func, free_registers);
+            alloc_register_linear_scan(func, num_registers);
         } else {
             std::cerr << "ERROR: Unknown utility type, got " << utility_type << std::endl;
             return 1;
