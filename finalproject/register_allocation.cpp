@@ -1,17 +1,23 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
-#include <set>
-#include <string>
-#include <stack>
-#include <map>
 
-#include "../task4/dataflow.hpp"
+#include "../task4/dataflow_utils.hpp"
+#include <ostream>
 
 void linear_scan(json& func) {
     Cfg cfg = get_cfg_func(func);
     std::vector<Block> blocks = cfg.blocks;
-    auto live_vars = df_live_vars(func);
+    auto live_vars = df_live_vars(func, false).first; // get all outs of blocks for live var
+
+    // std::cout << "live vars: " << std::endl;
+    // for (const auto& var : live_vars) {
+    //     std::cout << var.first << ": ";
+    //     for (const auto& v : var.second) {
+    //         std::cout << v << " ";
+    //     }
+    //     std::cout << std::endl;
+    // }
 }
 
 int main(int argc, char* argv[]) {
@@ -39,7 +45,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    std::cout << j;
+    // std::cout << j;
 
     return 0;
 }
