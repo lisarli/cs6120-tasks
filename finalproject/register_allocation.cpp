@@ -10,7 +10,6 @@
 
 std::vector<std::set<std::string>> per_block_live_vars(const Block& block, std::set<std::string>& live_vars) {
     std::vector<std::set<std::string>> live_vars_per_instr(block.size());
-    std::cout << block;
     for (int i = block.size() - 1; i >= 0; i--) {
         const auto& instr = block[i];
         live_vars_per_instr[i] = live_vars;
@@ -26,7 +25,38 @@ std::vector<std::set<std::string>> per_block_live_vars(const Block& block, std::
     return live_vars_per_instr;
 }
 
-std::pair<std::unordered_map<std::string, int>, int> linear_scan(std::vector<std::set<std::string>> live_vars, int num_registers) {
+Block assign_registers(Block& block, const std::unordered_map<std::string, int>& var_to_reg) {
+    Block new_block;
+    for (auto& instr : block) {
+        if (instr.contains("dest")) {
+            const auto& dest = instr["dest"].get<std::string>();
+            if (var_to_reg.find(dest) != var_to_reg.end()) {
+                if (var_to_reg.at(dest) < 0) {
+                    instr["dest"] = "m" + std::to_string(-1 * var_to_reg.at(dest));
+                } else {
+                    instr["dest"] = "r" + std::to_string(var_to_reg.at(dest));
+                }
+            }
+        }
+        if (instr.contains("args")) {
+            for (auto& arg : instr["args"]) {
+                const auto& arg_str = arg.get<std::string>();
+                if (var_to_reg.find(arg_str) != var_to_reg.end()) {
+                    if (var_to_reg.at(arg_str) < 0) {
+                        // need to get this from "memory" with copy id instruction
+                        arg = "m" + std::to_string(-1 * var_to_reg.at(arg_str));
+                    } else {
+                        arg = "r" + std::to_string(var_to_reg.at(arg_str));
+                    }
+                }
+            }
+        }
+        new_block.push_back(instr);
+    }
+    return new_block;
+}
+
+std::unordered_map<std::string, int> linear_scan_block(std::vector<std::set<std::string>> live_vars, int num_registers) {
     std::vector<int> free_registers;
     for (int i = num_registers; i > 0; i--) {
         free_registers.push_back(i);
@@ -63,7 +93,7 @@ std::pair<std::unordered_map<std::string, int>, int> linear_scan(std::vector<std
     std::priority_queue<std::pair<std::string, std::pair<int, int>>, std::vector<std::pair<std::string, std::pair<int, int>>>, decltype(cmp)> expiring_intervals(cmp);
     std::unordered_map<std::string, int> var_to_reg; 
     int spilled_vars = 0;
-    
+
     for (const auto& interval : sorted_intervals) {
         const auto& var = interval.first;
         const auto& start = interval.second.first;
@@ -80,15 +110,15 @@ std::pair<std::unordered_map<std::string, int>, int> linear_scan(std::vector<std
             const auto& spill = expiring_intervals.top();
             if (spill.second.second > end) {
                 var_to_reg[var] = var_to_reg[spill.first];
-                var_to_reg[spill.first] = -1; // mark as spilled
                 spilled_vars++;
+                var_to_reg[spill.first] = -1 * spilled_vars; // mark as spilled
                 active_intervals.erase(spill.first);
                 expiring_intervals.pop();
                 active_intervals.insert(var);
                 expiring_intervals.push(interval);
             } else {
-                var_to_reg[var] = -1;
                 spilled_vars++;
+                var_to_reg[var] = -1 * spilled_vars;
             }
             
         } else {
@@ -100,14 +130,15 @@ std::pair<std::unordered_map<std::string, int>, int> linear_scan(std::vector<std
         }
     }
 
-    return make_pair(var_to_reg, spilled_vars);
+    return var_to_reg;
 }
 
-void alloc_register_linear_scan(json& func, int num_registers) {
+void linear_scan(json& func, int num_registers) {
     Cfg cfg = get_cfg_func(func);
     std::vector<Block> blocks = cfg.blocks;
     auto live_vars = df_live_vars(func, false).first; // get all outs of blocks for live var
 
+    std::vector<json> new_func_body;
     for (int i = 0; i < blocks.size(); i++) {
         auto& block = blocks[i];
         auto& block_live_vars = live_vars[i];
@@ -125,17 +156,19 @@ void alloc_register_linear_scan(json& func, int num_registers) {
         //         std::cout << std::endl;
         //     }
         // }
-        auto ls = linear_scan(live_vars_per_instr, num_registers);
-        auto& var_to_reg = ls.first;
-        auto& spilled_vars = ls.second;
+        auto var_to_reg = linear_scan_block(live_vars_per_instr, num_registers);
 
         // print var to reg
-        std::cout << "var to reg: " << std::endl;
-        for (const auto& var : var_to_reg) {
-            std::cout << var.first << ": " << var.second << std::endl;
-        }
-        std::cout << "spilled vars: " << spilled_vars << std::endl;
+        // std::cout << "var to reg: " << std::endl;
+        // for (const auto& var : var_to_reg) {
+        //     std::cout << var.first << ": " << var.second << std::endl;
+        // }
+
+        Block register_assigned_block = assign_registers(block, var_to_reg);
+        new_func_body.insert(new_func_body.end(), register_assigned_block.begin(), register_assigned_block.end());
     }
+
+    func["instrs"] = new_func_body;
 }
 
 int main(int argc, char* argv[]) {
@@ -164,14 +197,14 @@ int main(int argc, char* argv[]) {
     
     for(auto& func: j["functions"]){
         if (utility_type == "linear") {
-            alloc_register_linear_scan(func, num_registers);
+            linear_scan(func, num_registers);
         } else {
             std::cerr << "ERROR: Unknown utility type, got " << utility_type << std::endl;
             return 1;
         }
     }
 
-    // std::cout << j;
+    std::cout << j;
 
     return 0;
 }
