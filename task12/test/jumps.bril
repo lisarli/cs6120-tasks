@@ -1,0 +1,44 @@
+@main(x: int) {
+  one: int = const 1;
+  hundred: int = const 100;
+  y: int = add x one;
+  cond: bool = lt x hundred;
+  temp: bool = not cond;
+  br cond .jmp1 .jmp1;
+.jmp1:
+  jmp .jmp2;
+.jmp2:
+  jmp .jmp3;
+.jmp3:
+  jmp .jmp4;
+.jmp4:
+  jmp .jmp5;
+.jmp5:
+  jmp .jmp6;
+.jmp6:
+  br cond .then .else;
+.then:
+  z: int = call @f y;
+  a: int = const 2;
+  b: int = const 3;
+  jmp .exit;
+.else:
+  z: int = call @g y;
+  a: int = const 2;
+  b: int = const 3;
+.exit:
+  print z;
+}
+
+@f(a: int): int {
+  one: int = const 1;
+  s: int = sub a one;
+  ret s;
+}
+
+@g(a: int): int {
+  one: int = const 1;
+  s: int = add a one;
+  ret s;
+}
+

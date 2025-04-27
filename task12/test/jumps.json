@@ -1,0 +1,254 @@
+{
+  "functions": [
+    {
+      "args": [
+        {
+          "name": "x",
+          "type": "int"
+        }
+      ],
+      "instrs": [
+        {
+          "dest": "one",
+          "op": "const",
+          "type": "int",
+          "value": 1
+        },
+        {
+          "dest": "hundred",
+          "op": "const",
+          "type": "int",
+          "value": 100
+        },
+        {
+          "args": [
+            "x",
+            "one"
+          ],
+          "dest": "y",
+          "op": "add",
+          "type": "int"
+        },
+        {
+          "args": [
+            "x",
+            "hundred"
+          ],
+          "dest": "cond",
+          "op": "lt",
+          "type": "bool"
+        },
+        {
+          "args": [
+            "cond"
+          ],
+          "dest": "temp",
+          "op": "not",
+          "type": "bool"
+        },
+        {
+          "args": [
+            "cond"
+          ],
+          "labels": [
+            "jmp1",
+            "jmp1"
+          ],
+          "op": "br"
+        },
+        {
+          "label": "jmp1"
+        },
+        {
+          "labels": [
+            "jmp2"
+          ],
+          "op": "jmp"
+        },
+        {
+          "label": "jmp2"
+        },
+        {
+          "labels": [
+            "jmp3"
+          ],
+          "op": "jmp"
+        },
+        {
+          "label": "jmp3"
+        },
+        {
+          "labels": [
+            "jmp4"
+          ],
+          "op": "jmp"
+        },
+        {
+          "label": "jmp4"
+        },
+        {
+          "labels": [
+            "jmp5"
+          ],
+          "op": "jmp"
+        },
+        {
+          "label": "jmp5"
+        },
+        {
+          "labels": [
+            "jmp6"
+          ],
+          "op": "jmp"
+        },
+        {
+          "label": "jmp6"
+        },
+        {
+          "args": [
+            "cond"
+          ],
+          "labels": [
+            "then",
+            "else"
+          ],
+          "op": "br"
+        },
+        {
+          "label": "then"
+        },
+        {
+          "args": [
+            "y"
+          ],
+          "dest": "z",
+          "funcs": [
+            "f"
+          ],
+          "op": "call",
+          "type": "int"
+        },
+        {
+          "dest": "a",
+          "op": "const",
+          "type": "int",
+          "value": 2
+        },
+        {
+          "dest": "b",
+          "op": "const",
+          "type": "int",
+          "value": 3
+        },
+        {
+          "labels": [
+            "exit"
+          ],
+          "op": "jmp"
+        },
+        {
+          "label": "else"
+        },
+        {
+          "args": [
+            "y"
+          ],
+          "dest": "z",
+          "funcs": [
+            "g"
+          ],
+          "op": "call",
+          "type": "int"
+        },
+        {
+          "dest": "a",
+          "op": "const",
+          "type": "int",
+          "value": 2
+        },
+        {
+          "dest": "b",
+          "op": "const",
+          "type": "int",
+          "value": 3
+        },
+        {
+          "label": "exit"
+        },
+        {
+          "args": [
+            "z"
+          ],
+          "op": "print"
+        }
+      ],
+      "name": "main"
+    },
+    {
+      "args": [
+        {
+          "name": "a",
+          "type": "int"
+        }
+      ],
+      "instrs": [
+        {
+          "dest": "one",
+          "op": "const",
+          "type": "int",
+          "value": 1
+        },
+        {
+          "args": [
+            "a",
+            "one"
+          ],
+          "dest": "s",
+          "op": "sub",
+          "type": "int"
+        },
+        {
+          "args": [
+            "s"
+          ],
+          "op": "ret"
+        }
+      ],
+      "name": "f",
+      "type": "int"
+    },
+    {
+      "args": [
+        {
+          "name": "a",
+          "type": "int"
+        }
+      ],
+      "instrs": [
+        {
+          "dest": "one",
+          "op": "const",
+          "type": "int",
+          "value": 1
+        },
+        {
+          "args": [
+            "a",
+            "one"
+          ],
+          "dest": "s",
+          "op": "add",
+          "type": "int"
+        },
+        {
+          "args": [
+            "s"
+          ],
+          "op": "ret"
+        }
+      ],
+      "name": "g",
+      "type": "int"
+    }
+  ]
+}
